@@ -1,6 +1,6 @@
 package com.zju.lease.web.admin.custom.config;
 
-import com.zju.lease.web.admin.custom.converter.StringToItemTypeConverter;
+import com.zju.lease.web.admin.custom.converter.StringToBaseEnumConverterFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
@@ -10,10 +10,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebMvcConfiguration implements WebMvcConfigurer {
 
     @Autowired
-    private StringToItemTypeConverter stringToItemTypeConverter;
+    private StringToBaseEnumConverterFactory stringToBaseEnumConverterFactory;
 
     @Override
     public void addFormatters(FormatterRegistry registry) {
-        registry.addConverter(this.stringToItemTypeConverter);
+        registry.addConverterFactory(this.stringToBaseEnumConverterFactory);
     }
 }
