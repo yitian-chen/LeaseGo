@@ -2,6 +2,7 @@ package com.zju.lease.web.admin.service;
 
 import com.zju.lease.model.entity.AttrKey;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zju.lease.web.admin.vo.attr.AttrKeyVo;
 
 import java.util.List;
 
@@ -12,4 +13,5 @@ import java.util.List;
 */
 public interface AttrKeyService extends IService<AttrKey> {
 
+    List<AttrKeyVo> listAttrInfo();
 }
