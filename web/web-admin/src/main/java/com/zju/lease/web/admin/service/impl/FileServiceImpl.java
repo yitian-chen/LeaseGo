@@ -25,43 +25,36 @@ public class FileServiceImpl implements FileService {
     private MinioProperties properties;
 
     @Override
-    public String upload(MultipartFile file) {
+    public String upload(MultipartFile file) throws ServerException, InsufficientDataException, ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
+        boolean bucketExists = minioClient.bucketExists(
+                BucketExistsArgs.builder()
+                    .bucket(properties.getBucketName())
+                    .build());
 
-        try {
-            boolean bucketExists = minioClient.bucketExists(
-                    BucketExistsArgs.builder()
+        if (!bucketExists) {
+            minioClient.makeBucket(
+                    MakeBucketArgs.builder()
                         .bucket(properties.getBucketName())
                         .build());
-
-            if (!bucketExists) {
-                minioClient.makeBucket(
-                        MakeBucketArgs.builder()
-                            .bucket(properties.getBucketName())
-                            .build());
-                minioClient.setBucketPolicy(
-                        SetBucketPolicyArgs.builder()
-                            .bucket(properties.getBucketName())
-                            .config(createBucketPolicyConfig(properties.getBucketName()))
-                            .build());
-            }
-
-            String fileName = new SimpleDateFormat("yyyyMMdd").format(new Date())
-                    + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
-            minioClient.putObject(
-                    PutObjectArgs.builder()
+            minioClient.setBucketPolicy(
+                    SetBucketPolicyArgs.builder()
                         .bucket(properties.getBucketName())
-                        .object(fileName)
-                        .stream(file.getInputStream(), file.getSize(), -1)
-                        .contentType(file.getContentType())
+                        .config(createBucketPolicyConfig(properties.getBucketName()))
                         .build());
-
-            String url = properties.getEndpoint() + "/" + properties.getBucketName() + "/" + fileName;
-            return url;
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
-        return null;
+        String fileName = new SimpleDateFormat("yyyyMMdd").format(new Date())
+                + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+        minioClient.putObject(
+                PutObjectArgs.builder()
+                    .bucket(properties.getBucketName())
+                    .object(fileName)
+                    .stream(file.getInputStream(), file.getSize(), -1)
+                    .contentType(file.getContentType())
+                    .build());
+
+        String url = properties.getEndpoint() + "/" + properties.getBucketName() + "/" + fileName;
+        return url;
     }
 
     private String createBucketPolicyConfig(String bucketName) {
