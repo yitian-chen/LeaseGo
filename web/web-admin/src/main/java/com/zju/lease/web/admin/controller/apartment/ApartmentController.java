@@ -4,6 +4,7 @@ package com.zju.lease.web.admin.controller.apartment;
 import com.zju.lease.common.result.Result;
 import com.zju.lease.model.entity.ApartmentInfo;
 import com.zju.lease.model.enums.ReleaseStatus;
+import com.zju.lease.web.admin.service.ApartmentInfoService;
 import com.zju.lease.web.admin.vo.apartment.ApartmentDetailVo;
 import com.zju.lease.web.admin.vo.apartment.ApartmentItemVo;
 import com.zju.lease.web.admin.vo.apartment.ApartmentQueryVo;
@@ -11,6 +12,8 @@ import com.zju.lease.web.admin.vo.apartment.ApartmentSubmitVo;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.checkerframework.checker.units.qual.A;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,9 +24,13 @@ import java.util.List;
 @RequestMapping("/admin/apartment")
 public class ApartmentController {
 
+    @Autowired
+    private ApartmentInfoService service;
+
     @Operation(summary = "保存或更新公寓信息")
     @PostMapping("saveOrUpdate")
     public Result saveOrUpdate(@RequestBody ApartmentSubmitVo apartmentSubmitVo) {
+        service.saveOrUpdateApartment(apartmentSubmitVo);
         return Result.ok();
     }
 
@@ -33,7 +40,7 @@ public class ApartmentController {
         return Result.ok();
     }
 
-    @Operation(summary = "根据ID获取公寓详细信息")
+    @Operation(summary = "根据id获取公寓详细信息")
     @GetMapping("getDetailById")
     public Result<ApartmentDetailVo> getDetailById(@RequestParam Long id) {
         return Result.ok();
