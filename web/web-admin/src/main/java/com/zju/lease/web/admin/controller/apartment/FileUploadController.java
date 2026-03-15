@@ -29,9 +29,8 @@ public class FileUploadController {
     @Operation(summary = "上传文件")
     @PostMapping("upload")
     public Result<String> upload(@RequestParam MultipartFile file) {
-        String url = null;
         try {
-            url = service.upload(file);
+            String url = service.upload(file);
             return Result.ok(url);
         } catch (Exception e) {
             return Result.fail();
