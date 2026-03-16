@@ -1,6 +1,7 @@
 package com.zju.lease.web.admin.controller.apartment;
 
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.common.result.Result;
 import com.zju.lease.model.entity.ApartmentInfo;
 import com.zju.lease.model.enums.ReleaseStatus;
@@ -37,7 +38,10 @@ public class ApartmentController {
     @Operation(summary = "根据条件分页查询公寓列表")
     @GetMapping("pageItem")
     public Result<IPage<ApartmentItemVo>> pageItem(@RequestParam long current, @RequestParam long size, ApartmentQueryVo queryVo) {
-        return Result.ok();
+        Page<ApartmentItemVo> page = new Page<>(current, size);
+        // 由于需要多表查询（房间总数与空余房间数需要查房间表和租约表），因此需要自定义sql
+        IPage<ApartmentItemVo> result = service.pageItem(page, queryVo);
+        return Result.ok(result);
     }
 
     @Operation(summary = "根据id获取公寓详细信息")

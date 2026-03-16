@@ -26,3 +26,6 @@ minio:
   access-key: minioadmin
   secret-key: CyT12346
   bucket-name: lease
+
+springdoc:
+  default-flat-param-object: true

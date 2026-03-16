@@ -1,11 +1,15 @@
 package com.zju.lease.web.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.ItemType;
 import com.zju.lease.web.admin.mapper.ApartmentInfoMapper;
 import com.zju.lease.web.admin.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zju.lease.web.admin.vo.apartment.ApartmentItemVo;
+import com.zju.lease.web.admin.vo.apartment.ApartmentQueryVo;
 import com.zju.lease.web.admin.vo.apartment.ApartmentSubmitVo;
 import com.zju.lease.web.admin.vo.graph.GraphVo;
 import org.checkerframework.checker.units.qual.A;
@@ -24,6 +28,9 @@ import java.util.List;
 @Service
 public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, ApartmentInfo>
         implements ApartmentInfoService {
+
+    @Autowired
+    private ApartmentInfoMapper apartmentInfoMapper;
 
     @Autowired
     private GraphInfoService graphInfoService;
@@ -120,6 +127,11 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
             }
             apartmentFeeValueService.saveBatch(apartmentFeeValueList);
         }
+    }
+
+    @Override
+    public IPage<ApartmentItemVo> pageItem(Page<ApartmentItemVo> page, ApartmentQueryVo queryVo) {
+        return apartmentInfoMapper.pageItem(page, queryVo);
     }
 }
 
