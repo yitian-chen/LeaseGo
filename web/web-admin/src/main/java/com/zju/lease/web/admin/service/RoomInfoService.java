@@ -3,6 +3,7 @@ package com.zju.lease.web.admin.service;
 import com.zju.lease.model.entity.RoomInfo;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zju.lease.web.admin.vo.room.RoomSubmitVo;
 
 /**
 * @author liubo
@@ -11,4 +12,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface RoomInfoService extends IService<RoomInfo> {
 
+    void saveOrUpdateRoom(RoomSubmitVo roomSubmitVo);
 }
