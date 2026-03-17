@@ -1,12 +1,16 @@
 package com.zju.lease.web.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.ItemType;
 import com.zju.lease.web.admin.mapper.RoomInfoMapper;
 import com.zju.lease.web.admin.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zju.lease.web.admin.vo.graph.GraphVo;
+import com.zju.lease.web.admin.vo.room.RoomItemVo;
+import com.zju.lease.web.admin.vo.room.RoomQueryVo;
 import com.zju.lease.web.admin.vo.room.RoomSubmitVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,6 +45,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
 
     @Autowired
     private RoomLeaseTermService roomLeaseTermService;
+
+    @Autowired
+    private RoomInfoMapper roomInfoMapper;
 
     @Override
     public void saveOrUpdateRoom(RoomSubmitVo roomSubmitVo) {
@@ -168,6 +175,11 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             roomLeaseTermService.saveBatch(roomLeaseTermList);
         }
 
+    }
+
+    @Override
+    public IPage<RoomItemVo> pageItem(Page<RoomItemVo> page, RoomQueryVo queryVo) {
+        return roomInfoMapper.pageItem(page, queryVo);
     }
 }
 

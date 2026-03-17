@@ -1,8 +1,11 @@
 package com.zju.lease.web.admin.mapper;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.model.entity.RoomInfo;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.zju.lease.web.admin.vo.room.RoomItemVo;
+import com.zju.lease.web.admin.vo.room.RoomQueryVo;
 
 /**
 * @author liubo
@@ -12,6 +15,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 */
 public interface RoomInfoMapper extends BaseMapper<RoomInfo> {
 
+    IPage<RoomItemVo> pageItem(Page<RoomItemVo> page, RoomQueryVo queryVo);
 }
 
 
