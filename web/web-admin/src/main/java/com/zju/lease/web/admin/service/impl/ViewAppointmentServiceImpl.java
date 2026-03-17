@@ -1,9 +1,14 @@
 package com.zju.lease.web.admin.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.model.entity.ViewAppointment;
 import com.zju.lease.web.admin.mapper.ViewAppointmentMapper;
 import com.zju.lease.web.admin.service.ViewAppointmentService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zju.lease.web.admin.vo.appointment.AppointmentQueryVo;
+import com.zju.lease.web.admin.vo.appointment.AppointmentVo;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,6 +20,13 @@ import org.springframework.stereotype.Service;
 public class ViewAppointmentServiceImpl extends ServiceImpl<ViewAppointmentMapper, ViewAppointment>
         implements ViewAppointmentService {
 
+    @Autowired
+    private ViewAppointmentMapper viewAppointmentMapper;
+
+    @Override
+    public IPage<AppointmentVo> pageAppointment(Page<AppointmentVo> page, AppointmentQueryVo queryVo) {
+        return viewAppointmentMapper.pageAppointment(page, queryVo);
+    }
 }
 
 
