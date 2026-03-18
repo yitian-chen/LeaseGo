@@ -230,7 +230,7 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         List<PaymentType> paymentTypeList = paymentTypeMapper.selectListByRoomId(id);
 
         // 查询租期列表
-        List<LeaseTerm> leaseTermList = leaseTermMapper.selectListByRoomId();
+        List<LeaseTerm> leaseTermList = leaseTermMapper.selectListByRoomId(id);
 
         // 组装结果
         RoomDetailVo roomDetailVo = new RoomDetailVo();

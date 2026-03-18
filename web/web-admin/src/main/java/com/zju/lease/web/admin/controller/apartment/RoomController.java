@@ -46,7 +46,7 @@ public class RoomController {
     @Operation(summary = "根据id获取房间详细信息")
     @GetMapping("getDetailById")
     public Result<RoomDetailVo> getDetailById(@RequestParam Long id) {
-        RoomDetailVo result = service.getDetailById(id);
+        RoomDetailVo result = service.getDetailById(id);  // TODO: 获取租期部分有bug
         return Result.ok(result);
     }
 
