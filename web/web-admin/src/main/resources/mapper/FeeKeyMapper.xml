@@ -16,7 +16,7 @@
     </resultMap>
 
     <select id="feeInfoList" resultMap="FeeKeyVoMap">
-        SELECT k.id, k.name, v.id fee_value_id, v.name fee_value_name, v.unit fee_value_unit, v.fee_key_id key_id
+        SELECT k.id, k.name key_name, v.id fee_value_id, v.name fee_value_name, v.unit fee_value_unit, v.fee_key_id key_id
         FROM fee_key k
         LEFT JOIN fee_value v
         ON v.fee_key_id = k.id
