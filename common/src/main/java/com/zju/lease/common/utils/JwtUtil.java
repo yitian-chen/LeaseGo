@@ -25,6 +25,10 @@ public class JwtUtil {
 
     // 解析验证 jwt 的方法
     public static void parseToken(String token) {
+        if (token == null) {
+            throw new LeaseException(ResultCodeEnum.ADMIN_LOGIN_AUTH);
+        }
+
         try {
             JwtParser jwtParser = Jwts.parserBuilder().setSigningKey(secretKey).build();
             jwtParser.parseClaimsJws(token);
