@@ -13,6 +13,7 @@
                 avatar_url,
                 additional_info,
                 post_id,
+                su.status,
                 sp.name post_name
         FROM system_user su
         LEFT JOIN system_post sp

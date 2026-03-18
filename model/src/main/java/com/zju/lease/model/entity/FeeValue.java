@@ -24,4 +24,9 @@ public class FeeValue extends BaseEntity {
     @TableField(value = "fee_key_id")
     private Long feeKeyId;
 
+    public void setUnit(String unit) {
+        System.out.println("Setter 被调用了！");
+        this.unit = unit;
+    }
+
 }
