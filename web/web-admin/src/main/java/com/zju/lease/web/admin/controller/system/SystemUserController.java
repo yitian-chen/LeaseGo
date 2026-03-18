@@ -11,6 +11,7 @@ import com.zju.lease.web.admin.vo.system.user.SystemUserQueryVo;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,12 +36,18 @@ public class SystemUserController {
     @GetMapping("getById")
     public Result<SystemUserItemVo> getById(@RequestParam Long id) {
         SystemUserItemVo result = service.getSystemUserById(id);
-        return Result.ok(result);
+        return Result.ok(result );
     }
 
     @Operation(summary = "保存或更新后台用户信息")
     @PostMapping("saveOrUpdate")
     public Result saveOrUpdate(@RequestBody SystemUser systemUser) {
+        // 密码需要处理，进行MD5加密
+        if (systemUser.getPassword() != null) {
+            systemUser.setPassword(DigestUtils.md5Hex(systemUser.getPassword()));
+        }
+        // 如果传入null，则Mybatis Plus会直接忽略，不会修改这个字段
+        service.saveOrUpdate(systemUser);
         return Result.ok();
     }
 
