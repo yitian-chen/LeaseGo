@@ -16,6 +16,7 @@
                     WHERE is_deleted = 0
                     AND apartment_id = #{id})
     </select>
+
     <select id="selectListByRoomId" resultType="com.zju.lease.model.entity.LabelInfo">
         SELECT id,
                 type,

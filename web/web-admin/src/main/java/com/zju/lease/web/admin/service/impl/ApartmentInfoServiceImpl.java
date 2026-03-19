@@ -73,7 +73,7 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
             // 删除图片列表
             LambdaQueryWrapper<GraphInfo> graphQueryWrapper = new LambdaQueryWrapper<>();
             graphQueryWrapper.eq(GraphInfo::getItemType, ItemType.APARTMENT);
-            graphQueryWrapper.eq(GraphInfo::getId, apartmentSubmitVo.getId());
+            graphQueryWrapper.eq(GraphInfo::getItemId, apartmentSubmitVo.getId());
             graphInfoService.remove(graphQueryWrapper);
 
             // 删除配套列表
@@ -108,13 +108,13 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
         }
 
         // 插入配套列表
-        List<Long> facilityInfoIdList = apartmentSubmitVo.getFacilityInfoIds();
-        if (!CollectionUtils.isEmpty(facilityInfoIdList)) {
+        List<FacilityInfo> facilityInfoList = apartmentSubmitVo.getFacilityInfoList();
+        if (!CollectionUtils.isEmpty(facilityInfoList)) {
             ArrayList<ApartmentFacility> facilityList = new ArrayList<>();
-            for (Long facilityId : facilityInfoIdList) {
+            for (FacilityInfo facilityInfo : facilityInfoList) {
                 ApartmentFacility apartmentFacility = new ApartmentFacility();
                 apartmentFacility.setApartmentId(apartmentSubmitVo.getId());
-                apartmentFacility.setFacilityId(facilityId);
+                apartmentFacility.setFacilityId(facilityInfo.getId());
                 facilityList.add(apartmentFacility);
             }
 
@@ -122,26 +122,26 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
         }
 
         // 插入标签列表
-        List<Long> labelIds = apartmentSubmitVo.getLabelIds();
-        if (!CollectionUtils.isEmpty(labelIds)) {
+        List<LabelInfo> labelInfoList = apartmentSubmitVo.getLabelInfoList();
+        if (!CollectionUtils.isEmpty(labelInfoList)) {
             List<ApartmentLabel> apartmentLabelList = new ArrayList<>();
-            for (Long labelId : labelIds) {
+            for (LabelInfo labelInfo : labelInfoList) {
                 ApartmentLabel apartmentLabel = new ApartmentLabel();
                 apartmentLabel.setApartmentId(apartmentSubmitVo.getId());
-                apartmentLabel.setLabelId(labelId);
+                apartmentLabel.setLabelId(labelInfo.getId());
                 apartmentLabelList.add(apartmentLabel);
             }
             apartmentLabelService.saveBatch(apartmentLabelList);
         }
 
         // 插入杂费列表
-        List<Long> feeValueIds = apartmentSubmitVo.getFeeValueIds();
-        if (!CollectionUtils.isEmpty(feeValueIds)) {
+        List<FeeValueVo> feeValueVoList = apartmentSubmitVo.getFeeValueVoList();
+        if (!CollectionUtils.isEmpty(feeValueVoList)) {
             ArrayList<ApartmentFeeValue> apartmentFeeValueList = new ArrayList<>();
-            for (Long feeValueId : feeValueIds) {
+            for (FeeValueVo feeValueVo : feeValueVoList) {
                 ApartmentFeeValue apartmentFeeValue = new ApartmentFeeValue();
                 apartmentFeeValue.setApartmentId(apartmentSubmitVo.getId());
-                apartmentFeeValue.setFeeValueId(feeValueId);
+                apartmentFeeValue.setFeeValueId(feeValueVo.getId());
                 apartmentFeeValueList.add(apartmentFeeValue);
             }
             apartmentFeeValueService.saveBatch(apartmentFeeValueList);
