@@ -33,6 +33,7 @@
         <minio.version>8.5.12</minio.version>
         <knife4j.version>4.1.0</knife4j.version>
         <aliyun.sms.version>2.0.23</aliyun.sms.version>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
 
     <!--配置dependencyManagement统一管理依赖版本-->
