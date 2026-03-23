@@ -1,8 +1,10 @@
 package com.zju.lease.web.app.controller.payment;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zju.lease.common.result.Result;
 import com.zju.lease.model.entity.PaymentType;
+import com.zju.lease.web.app.service.PaymentTypeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,15 +19,21 @@ import java.util.List;
 @RequestMapping("/app/payment")
 public class PaymentTypeController {
 
+    private PaymentTypeService service;
+
     @Operation(summary = "根据房间id获取可选支付方式列表")
     @GetMapping("listByRoomId")
     public Result<List<PaymentType>> list(@RequestParam Long id) {
-        return Result.ok();
+        LambdaQueryWrapper<PaymentType> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PaymentType::getId, id);
+        List<PaymentType> list = service.list(queryWrapper); // TODO: 此处需要自定义SQL，这样不对
+        return Result.ok(list);
     }
 
     @Operation(summary = "获取全部支付方式列表")
     @GetMapping("list")
     public Result<List<PaymentType>> list() {
-        return Result.ok();
+        List<PaymentType> list = service.list();
+        return Result.ok(list);
     }
 }
