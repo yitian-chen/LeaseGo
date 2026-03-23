@@ -2,9 +2,17 @@ package com.zju.lease.web.app.service.impl;
 
 import com.zju.lease.model.entity.ViewAppointment;
 import com.zju.lease.web.app.mapper.ViewAppointmentMapper;
+import com.zju.lease.web.app.service.ApartmentInfoService;
 import com.zju.lease.web.app.service.ViewAppointmentService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zju.lease.web.app.vo.apartment.ApartmentItemVo;
+import com.zju.lease.web.app.vo.appointment.AppointmentDetailVo;
+import com.zju.lease.web.app.vo.appointment.AppointmentItemVo;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * @author liubo
@@ -15,6 +23,30 @@ import org.springframework.stereotype.Service;
 public class ViewAppointmentServiceImpl extends ServiceImpl<ViewAppointmentMapper, ViewAppointment>
         implements ViewAppointmentService {
 
+    @Autowired
+    private ViewAppointmentMapper viewAppointmentMapper;
+
+    @Autowired
+    private ApartmentInfoService apartmentInfoService;
+
+    @Override
+    public List<AppointmentItemVo> listItemByUserId(Long userId) {
+        return viewAppointmentMapper.listItemByUserId(userId);
+    }
+
+    @Override
+    public AppointmentDetailVo getDetailById(Long id) {
+        ViewAppointment viewAppointment = viewAppointmentMapper.selectById(id);
+
+        ApartmentItemVo apartmentItemVo = apartmentInfoService.selectApartmentItemVoById(viewAppointment.getApartmentId());
+
+        AppointmentDetailVo agreementDetailVo = new AppointmentDetailVo();
+        BeanUtils.copyProperties(viewAppointment, agreementDetailVo);
+
+        agreementDetailVo.setApartmentItemVo(apartmentItemVo);
+
+        return agreementDetailVo;
+    }
 }
 
 

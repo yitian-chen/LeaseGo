@@ -2,6 +2,9 @@ package com.zju.lease.web.app.service;
 
 import com.zju.lease.model.entity.LeaseAgreement;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zju.lease.web.app.vo.agreement.AgreementItemVo;
+
+import java.util.List;
 
 /**
 * @author liubo
@@ -9,4 +12,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 * @createDate 2023-07-26 11:12:39
 */
 public interface LeaseAgreementService extends IService<LeaseAgreement> {
+    List<AgreementItemVo> listItemByPhone(String phone);
 }

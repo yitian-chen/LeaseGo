@@ -4,7 +4,11 @@ import com.zju.lease.model.entity.LeaseAgreement;
 import com.zju.lease.web.app.mapper.LeaseAgreementMapper;
 import com.zju.lease.web.app.service.LeaseAgreementService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zju.lease.web.app.vo.agreement.AgreementItemVo;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * @author liubo
@@ -15,6 +19,13 @@ import org.springframework.stereotype.Service;
 public class LeaseAgreementServiceImpl extends ServiceImpl<LeaseAgreementMapper, LeaseAgreement>
         implements LeaseAgreementService {
 
+    @Autowired
+    private LeaseAgreementMapper leaseAgreementMapper;
+
+    @Override
+    public List<AgreementItemVo> listItemByPhone(String phone) {
+        return leaseAgreementMapper.listItemByPhone(phone);
+    }
 }
 
 
