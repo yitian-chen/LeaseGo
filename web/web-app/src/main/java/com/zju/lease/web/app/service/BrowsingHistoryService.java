@@ -13,4 +13,6 @@ import com.zju.lease.web.app.vo.history.HistoryItemVo;
 */
 public interface BrowsingHistoryService extends IService<BrowsingHistory> {
     IPage<HistoryItemVo> pageItemByUserId(Page<HistoryItemVo> page, Long userId);
+
+    void saveHistory(Long userId, Long id);
 }

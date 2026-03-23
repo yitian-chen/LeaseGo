@@ -2,10 +2,13 @@ package com.zju.lease.web.app.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zju.lease.common.login.LoginUser;
+import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.ItemType;
 import com.zju.lease.web.app.mapper.*;
 import com.zju.lease.web.app.service.ApartmentInfoService;
+import com.zju.lease.web.app.service.BrowsingHistoryService;
 import com.zju.lease.web.app.service.RoomInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zju.lease.web.app.vo.apartment.ApartmentItemVo;
@@ -59,6 +62,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     @Autowired
     private ApartmentInfoService apartmentInfoService;
 
+    @Autowired
+    private BrowsingHistoryService browsingHistoryService;
+
     @Override
     public IPage<RoomItemVo> pageItem(Page<RoomItemVo> page, RoomQueryVo queryVo) {
         return roomInfoMapper.pageItem(page, queryVo);
@@ -99,6 +105,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         roomDetailVo.setPaymentTypeList(paymentTypeList);
         roomDetailVo.setFeeValueVoList(feeValueVoList);
         roomDetailVo.setLeaseTermList(leaseTermList);
+
+        // 保存浏览历史
+        browsingHistoryService.saveHistory(LoginUserHolder.getLoginUser().getUserId(), id);
 
         return roomDetailVo;
     }

@@ -6,7 +6,7 @@
 
     <resultMap id="HistoryItemVoMap" type="com.zju.lease.web.app.vo.history.HistoryItemVo" autoMapping="true">
         <id property="id" column="id"/>
-        <result property="roomId" column="room_id "/>
+        <result property="roomId" column="room_id"/>
         <collection property="roomGraphVoList" ofType="com.zju.lease.web.app.vo.graph.GraphVo"
                     select="selectGraphListByRoomId" column="room_id"/>
     </resultMap>
@@ -42,6 +42,5 @@
         WHERE is_deleted = 0
         AND item_type = 2
         AND item_id = #{room_id}
-
     </select>
 </mapper>
