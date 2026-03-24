@@ -130,12 +130,12 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         }
 
         // 插入配套列表
-        List<FacilityInfo> facilityInfoList = roomSubmitVo.getFacilityInfoList();
+        List<Long> facilityInfoList = roomSubmitVo.getFacilityInfoIds();
         if (!CollectionUtils.isEmpty(facilityInfoList)) {
             ArrayList<RoomFacility> facilityList = new ArrayList<>();
-            for (FacilityInfo facilityInfo : facilityInfoList) {
+            for (Long facilityId : facilityInfoList) {
                 RoomFacility roomFacility = new RoomFacility();
-                roomFacility.setFacilityId(facilityInfo.getId());
+                roomFacility.setFacilityId(facilityId);
                 roomFacility.setRoomId(roomSubmitVo.getId());
                 facilityList.add(roomFacility);
             }
@@ -144,13 +144,13 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         }
 
         // 插入标签列表
-        List<LabelInfo> labelInfoList = roomSubmitVo.getLabelInfoList();
+        List<Long> labelInfoList = roomSubmitVo.getLabelInfoIds();
         if (!CollectionUtils.isEmpty(labelInfoList)) {
             List<RoomLabel> roomLabelList = new ArrayList<>();
-            for (LabelInfo labelInfo : labelInfoList) {
+            for (Long labelId : labelInfoList) {
                 RoomLabel roomLabel = new RoomLabel();
                 roomLabel.setRoomId(roomSubmitVo.getId());
-                roomLabel.setLabelId(labelInfo.getId());
+                roomLabel.setLabelId(labelId);
                 roomLabelList.add(roomLabel);
             }
 
@@ -159,13 +159,13 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
 
 
         // 插入属性列表
-        List<AttrValueVo> attrValueVoList = roomSubmitVo.getAttrValueVoList();
+        List<Long> attrValueVoList = roomSubmitVo.getAttrValueIds();
         if (!CollectionUtils.isEmpty(attrValueVoList)) {
             ArrayList<RoomAttrValue> roomAttrValueList = new ArrayList<>();
-            for (AttrValueVo attrValueVo : attrValueVoList) {
+            for (Long attrValueId : attrValueVoList) {
                 RoomAttrValue roomAttrValue = new RoomAttrValue();
                 roomAttrValue.setRoomId(roomSubmitVo.getId());
-                roomAttrValue.setAttrValueId(attrValueVo.getId());
+                roomAttrValue.setAttrValueId(attrValueId);
                 roomAttrValueList.add(roomAttrValue);
             }
 
@@ -173,13 +173,13 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         }
 
         // 插入支付方式列表
-        List<PaymentType> paymentTypeList = roomSubmitVo.getPaymentTypeList();
+        List<Long> paymentTypeList = roomSubmitVo.getPaymentTypeIds();
         if (!CollectionUtils.isEmpty(paymentTypeList)) {
             ArrayList<RoomPaymentType> roomPaymentTypeList = new ArrayList<>();
-            for (PaymentType paymentType : paymentTypeList) {
+            for (Long paymentTypeId : paymentTypeList) {
                 RoomPaymentType roomPaymentType = new RoomPaymentType();
                 roomPaymentType.setRoomId(roomSubmitVo.getId());
-                roomPaymentType.setPaymentTypeId(paymentType.getId());
+                roomPaymentType.setPaymentTypeId(paymentTypeId);
                 roomPaymentTypeList.add(roomPaymentType);
             }
 
@@ -187,13 +187,13 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         }
 
         // 插入可选租期列表
-        List<LeaseTerm> leaseTermList = roomSubmitVo.getLeaseTermList();
+        List<Long> leaseTermList = roomSubmitVo.getLeaseTermIds();
         if (!CollectionUtils.isEmpty(leaseTermList)) {
             ArrayList<RoomLeaseTerm> roomLeaseTermList = new ArrayList<>();
-            for (LeaseTerm leaseTerm : leaseTermList) {
+            for (Long leaseTermId : leaseTermList) {
                 RoomLeaseTerm roomLeaseTerm = new RoomLeaseTerm();
                 roomLeaseTerm.setRoomId(roomSubmitVo.getId());
-                roomLeaseTerm.setLeaseTermId(leaseTerm.getId());
+                roomLeaseTerm.setLeaseTermId(leaseTermId);
                 roomLeaseTermList.add(roomLeaseTerm);
             }
 
