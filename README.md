@@ -54,7 +54,21 @@ LeaseGo 是一款现代化的全栈公寓租赁管理系统，基于 **Spring Bo
 - Minio Endpoint/AccessKey/SecretKey
 - 阿里云短信验证服务 key
 
-### 3. 编译启动
+### 3. 初始化数据库
+项目使用 MySQL 作为持久化存储。在启动后端服务前，请从以下步骤选其一初始化数据库：
+
+1.**创建数据库**：在 MySQL 中创建名为 `lease` 的数据库。
+   ```sql
+   CREATE DATABASE IF NOT EXISTS lease CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+   ```
+2.**导入脚本**: 将根目录下的 `leaseGo.sql` 导入到上述数据库中。
+- **方式 A (命令行)**:
+  ```Bash
+  mysql -u your_username -p lease < leaseGo.sql
+  ```
+- **方式 B (图形化界面)**: 使用 Navicat、DataGrip 或 IntelliJ IDEA 的 Database 插件，右键点击 lease 数据库，选择“运行 SQL 文件”并选择根目录下的脚本。
+
+### 4. 编译启动
 ```bash
 # 根目录下执行打包
 mvn clean install
