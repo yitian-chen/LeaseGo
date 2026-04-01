@@ -8,7 +8,6 @@ import org.springframework.web.socket.server.standard.ServerEndpointExporter;
 @Configuration
 public class WebSocketConfig {
     @Bean
-    @ConditionalOnProperty(name = "spring.profiles.active", havingValue = "test", matchIfMissing = false)
     public ServerEndpointExporter serverEndpointExporter() {
         return new ServerEndpointExporter();
     }

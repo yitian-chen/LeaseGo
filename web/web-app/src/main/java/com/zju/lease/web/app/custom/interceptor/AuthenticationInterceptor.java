@@ -15,6 +15,7 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String token = request.getHeader("access-token");
+        System.out.println("Token from header: " + token);
 
         Claims claims = JwtUtil.parseToken(token);
         Long userId = claims.get("userId", Long.class);
