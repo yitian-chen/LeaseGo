@@ -1,13 +1,13 @@
 package com.zju.lease.web.app.custom.websocket;
 
 import com.alibaba.fastjson2.JSON;
-import com.zju.lease.common.config.GetHttpSessionConfig;
-import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.common.utils.MessageUtils;
 import com.zju.lease.model.entity.Message;
-import jakarta.servlet.http.HttpSession;
+import com.zju.lease.model.entity.RedisChatMessage;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -15,99 +15,88 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-@ServerEndpoint(value = "/app/chat", configurator = GetHttpSessionConfig.class)
+@ServerEndpoint(value = "/app/chat", configurator = AuthWebSocketConfigurator.class)
 @Component
 public class ChatEndpoint {
 
-    // 此处的 Session 即一个用户的 WebSocket 连接通道，可以通过它进行服务器与客户端的信息传递
-    private static final Map<String, Session> onlineUsers = new ConcurrentHashMap<>();
+    // 本地内存仍需保留，但只存放连接到【当前微服务节点】的 Session
+    public static final Map<String, Session> onlineUsers = new ConcurrentHashMap<>();
 
-    // 此处的 HttpSession 即用户登陆时创建的状态会话，用于身份认证。
-    private HttpSession httpSession;
+    // 解决 @ServerEndpoint 类中无法直接 @Autowired 注入 Spring Bean 的问题
+    private static RedisTemplate<String, String> redisTemplate;
 
-    // @OnOpen 注解指的是建立 websocket 连接后，此方法被调用，有点类似 Arduino 里面的类似方法
+    @Autowired
+    public void setRedisTemplate(RedisTemplate<String, String> redisTemplate) {
+        ChatEndpoint.redisTemplate = redisTemplate;
+    }
+
+    // 当前连接的用户名
+    private String currentUserName;
+
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) {
-        String userName = LoginUserHolder.getLoginUser().getUserName();
-        onlineUsers.put(userName, session);
+        // 从握手配置器中获取 username
+        this.currentUserName = (String) config.getUserProperties().get("username");
+        if (this.currentUserName == null) {
+            return;
+        }
 
-        // 广播通知所有用户，此用户上线
-        String message = MessageUtils.getMessage(true, null, MessageUtils.getOnlineUsersMessage(getFriends()));
-        broadcastAllUsers(message);
+        // 保存到本节点内存
+        onlineUsers.put(this.currentUserName, session);
+
+        // 存入 Redis，维护全局在线用户列表
+        redisTemplate.opsForSet().add("chat:online_users", this.currentUserName);
+
+        // 广播上线消息（通知其他节点）
+        broadcastOnlineStatus();
     }
 
-    private Set<String> getFriends() {
-        return onlineUsers.keySet();
-    }
+    @OnMessage
+    public void onMessage(String message, Session session) {
+        Message msg = JSON.parseObject(message, Message.class);
 
-    private void broadcastAllUsers(String message) {
-        // 用 entrySet 把 Map 变成方便遍历的 key + value pair Set，方便用 for 遍历
-        Set<Map.Entry<String, Session>> entries = onlineUsers.entrySet();
+        // 构造需要在集群中路由的完整消息体
+        RedisChatMessage redisMsg = new RedisChatMessage();
+        redisMsg.setFromName(this.currentUserName);
+        redisMsg.setToName(msg.getToName());
+        redisMsg.setMessage(msg.getMessage());
+
+        // 将消息发布到 Redis 的 chat_msg_channel 频道，交由监听器分发
+        redisTemplate.convertAndSend("chat_msg_channel", JSON.toJSONString(redisMsg));
+
+        // 私聊消息也发给自己一份，用于前端回显
         try {
-            for (Map.Entry<String, Session> entry : entries) {
-                Session session = entry.getValue();
-                // 用 Session 类的 getBasicRemote() 方法来发送同步消息
-                session.getBasicRemote().sendText(message);
-            }
+            session.getBasicRemote().sendText(
+                    "{\"system\": false, \"fromName\": \"" + this.currentUserName
+                            + "\", \"message\": \"" + msg.getMessage() + "\"}"
+            );
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // 浏览器向客户端发送消息时该方法会被调用，即私聊
-    @OnMessage
-    public void onMessage(String message, Session session) {
-        // 调用 parseObject() 方法将传来的 JSON 格式的 message 装填进格式相对应的 Message 类中，方便后续调用
-        Message msg = JSON.parseObject(message, Message.class);
-        String toName = msg.getToName();
-        String tempMessage = msg.getMessage();
-
-        // 获取消息接收方的 Session
-        Session targetSession = onlineUsers.get(toName);
-        if (targetSession != null) {
-            String currentUserName = LoginUserHolder.getLoginUser().getUserName();
-            MessageUtils.getOnlineUsersMessage(Set.of(currentUserName + ": " + tempMessage));
-
-            try {
-                // 发送给目标用户
-                targetSession.getBasicRemote().sendText(
-                        "{\"system\": false, \"fromName\": \"" + currentUserName
-                                + "\", \"message\": \"" + tempMessage + "\"}"
-                );
-
-                // 发送给当前用户自己
-                session.getBasicRemote().sendText(
-                        "{\"system\": false, \"fromName\": \"" + currentUserName
-                                + "\", \"message\": \"" + tempMessage + "\"}"
-                );
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     @OnClose
     public void onClose(Session session) {
-        String userName = LoginUserHolder.getLoginUser().getUserName();
-        if (userName != null) {
-            // 此处调用 Map 的 remove() 方法，移除这对 K - V pair ，同时返回 value
-            Session removeSession = onlineUsers.remove(userName);
-            if (removeSession != null) {
-                try {
-                    removeSession.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+        if (this.currentUserName != null) {
+            // 从本节点移除
+            onlineUsers.remove(this.currentUserName);
+            // 从全局 Redis 移除
+            redisTemplate.opsForSet().remove("chat:online_users", this.currentUserName);
 
-        // 通知其他用户
-        String message = MessageUtils.getOnlineUsersMessage(getFriends());
-        broadcastAllUsers(message);
+            // 广播下线消息
+            broadcastOnlineStatus();
+        }
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
         throwable.printStackTrace();
+    }
+
+    private void broadcastOnlineStatus() {
+        Set<String> allOnlineUsers = redisTemplate.opsForSet().members("chat:online_users");
+        String message = MessageUtils.getMessage(true, null, MessageUtils.getOnlineUsersMessage(allOnlineUsers));
+        // 将系统广播消息发送到专门的广播频道
+        redisTemplate.convertAndSend("chat_sys_channel", message);
     }
 }
