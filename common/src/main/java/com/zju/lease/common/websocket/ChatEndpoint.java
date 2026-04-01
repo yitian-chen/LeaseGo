@@ -1,12 +1,12 @@
 package com.zju.lease.common.websocket;
 
+import com.alibaba.fastjson2.JSON;
 import com.zju.lease.common.config.GetHttpSessionConfig;
 import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.common.utils.MessageUtils;
+import com.zju.lease.common.websocket.pojo.Message;
 import jakarta.servlet.http.HttpSession;
-import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.OnOpen;
-import jakarta.websocket.Session;
+import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.stereotype.Component;
 
@@ -52,5 +52,62 @@ public class ChatEndpoint {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // 浏览器向客户端发送消息时该方法会被调用，即私聊
+    @OnMessage
+    public void onMessage(String message, Session session) {
+        // 调用 parseObject() 方法将传来的 JSON 格式的 message 装填进格式相对应的 Message 类中，方便后续调用
+        Message msg = JSON.parseObject(message, Message.class);
+        String toName = msg.getToName();
+        String tempMessage = msg.getMessage();
+
+        // 获取消息接收方的 Session
+        Session targetSession = onlineUsers.get(toName);
+        if (targetSession != null) {
+            String currentUserName = LoginUserHolder.getLoginUser().getUserName();
+            MessageUtils.getOnlineUsersMessage(Set.of(currentUserName + ": " + tempMessage));
+
+            try {
+                // 发送给目标用户
+                targetSession.getBasicRemote().sendText(
+                        "{\"system\": false, \"fromName\": \"" + currentUserName
+                                + "\", \"message\": \"" + tempMessage + "\"}"
+                );
+
+                // 发送给当前用户自己
+                session.getBasicRemote().sendText(
+                        "{\"system\": false, \"fromName\": \"" + currentUserName
+                                + "\", \"message\": \"" + tempMessage + "\"}"
+                );
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @OnClose
+    public void onClose(Session session) {
+        String userName = LoginUserHolder.getLoginUser().getUserName();
+        if (userName != null) {
+            // 此处调用 Map 的 remove() 方法，移除这对 K - V pair ，同时返回 value
+            Session removeSession = onlineUsers.remove(userName);
+            if (removeSession != null) {
+                try {
+                    removeSession.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        // 通知其他用户
+        String message = MessageUtils.getOnlineUsersMessage(getFriends());
+        broadcastAllUsers(message);
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        throwable.printStackTrace();
     }
 }

@@ -21,7 +21,7 @@ public class MessageUtils {
         return sb.toString();
     }
 
-    public static Object getOnlineUsersMessage(Set<String> onlineUsers) {
+    public static String getOnlineUsersMessage(Set<String> onlineUsers) {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         sb.append("\"system\": true,");
