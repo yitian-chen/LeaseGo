@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.common.result.Result;
 import com.zju.lease.model.entity.LeaseAgreement;
-import com.zju.lease.model.entity.LeaseTerm;
 import com.zju.lease.model.enums.LeaseStatus;
 import com.zju.lease.web.app.service.LeaseAgreementService;
 import com.zju.lease.web.app.vo.agreement.AgreementDetailVo;

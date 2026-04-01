@@ -1,10 +1,10 @@
-package com.zju.lease.common.websocket;
+package com.zju.lease.web.app.custom.websocket;
 
 import com.alibaba.fastjson2.JSON;
 import com.zju.lease.common.config.GetHttpSessionConfig;
 import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.common.utils.MessageUtils;
-import com.zju.lease.common.websocket.pojo.Message;
+import com.zju.lease.model.entity.Message;
 import jakarta.servlet.http.HttpSession;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;

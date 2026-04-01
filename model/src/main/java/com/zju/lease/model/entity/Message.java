@@ -1,4 +1,4 @@
-package com.zju.lease.common.websocket.pojo;
+package com.zju.lease.model.entity;
 
 import lombok.Data;
 
