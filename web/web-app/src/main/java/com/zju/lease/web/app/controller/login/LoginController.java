@@ -5,6 +5,7 @@ import com.zju.lease.common.login.LoginUser;
 import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.common.result.Result;
 import com.zju.lease.web.app.service.LoginService;
+import com.zju.lease.web.app.vo.user.CaptchaVo;
 import com.zju.lease.web.app.vo.user.LoginVo;
 import com.zju.lease.web.app.vo.user.UserInfoVo;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,8 +28,15 @@ public class LoginController {
         return Result.ok();
     }
 
+    @GetMapping("login/captcha")
+    @Operation(summary = "获取图形验证码")
+    public Result<CaptchaVo> getCaptcha() {
+        CaptchaVo result = service.getCaptcha();
+        return Result.ok(result);
+    }
+
     @PostMapping("login")
-    @Operation(summary = "登录")
+    @Operation(summary = "登录(支持短信和密码)")
     public Result<String> login(@RequestBody LoginVo loginVo) {
         String token = service.login(loginVo);
         return Result.ok(token);
@@ -40,6 +48,14 @@ public class LoginController {
         Long userId = LoginUserHolder.getLoginUser().getUserId();
         UserInfoVo info = service.getLoginUserById(userId);
         return Result.ok(info);
+    }
+
+    @PostMapping("updateNickname")
+    @Operation(summary = "修改用户名")
+    public Result updateNickname(@RequestParam String nickname) {
+        Long userId = LoginUserHolder.getLoginUser().getUserId();
+        service.updateNickname(userId, nickname);
+        return Result.ok();
     }
 }
 

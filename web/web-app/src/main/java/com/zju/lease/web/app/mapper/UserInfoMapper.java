@@ -10,7 +10,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @Entity com.zju.lease.model.entity.UserInfo
 */
 public interface UserInfoMapper extends BaseMapper<UserInfo> {
-
+    // 专门用于登录校验，会把 select=false 的 password 也查出来
+    UserInfo selectOneByPhone(String phone);
 }
 
 

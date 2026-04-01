@@ -19,7 +19,7 @@ public enum ResultCodeEnum {
 
     ADMIN_ACCOUNT_EXIST_ERROR(301, "账号已存在"),
     ADMIN_CAPTCHA_CODE_ERROR(302, "验证码错误"),
-    ADMIN_CAPTCHA_CODE_EXPIRED(303, "验证码已过期"),
+    ADMIN_CAPTCHA_CODE_EXPIRED(303, "图形验证码已过期"),
     ADMIN_CAPTCHA_CODE_NOT_FOUND(304, "未输入验证码"),
 
 
@@ -36,6 +36,13 @@ public enum ResultCodeEnum {
     APP_LOGIN_CODE_EXPIRED(505, "验证码已过期"),
     APP_LOGIN_CODE_ERROR(506, "验证码错误"),
     APP_ACCOUNT_DISABLED_ERROR(507, "该用户已被禁用"),
+    APP_INVALID_LOGIN_STRATAGY(508, "无效的登录策略"),
+    APP_PASSWORD_REQUIRED_FOR_NEW(509, "新用户初次登录请设置密码"),
+    APP_PHONE_UNSIGNED_UP(510, "该手机号未注册，请先使用验证码登录"),
+    APP_PASSWORD_NOT_SET(511, "未设置密码，请使用验证码登录"),
+    APP_ACCOUNT_ERROR(512, "用户名或密码错误"),
+    APP_USERNAME_EMPTY(513, "用户名不能为空"),
+    APP_USERNAME_EXIST(514, "用户名已存在"),
 
 
     TOKEN_EXPIRED(601, "token过期"),

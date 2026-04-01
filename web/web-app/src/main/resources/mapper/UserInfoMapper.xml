@@ -4,4 +4,9 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.zju.lease.web.app.mapper.UserInfoMapper">
 
+    <select id="selectOneByPhone" resultType="com.zju.lease.model.entity.UserInfo">
+        select id, phone, password, avatar_url, nickname, status
+        from user_info
+        where phone = #{phone} and is_deleted = 0
+    </select>
 </mapper>
