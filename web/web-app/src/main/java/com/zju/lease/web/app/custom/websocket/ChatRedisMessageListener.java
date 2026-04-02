@@ -20,10 +20,11 @@ public class ChatRedisMessageListener implements MessageListener {
         if ("chat_msg_channel".equals(channel)) {
             // 处理私聊消息
             RedisChatMessage redisMsg = JSON.parseObject(body, RedisChatMessage.class);
-            String toName = redisMsg.getToName();
+
+            Long toId = redisMsg.getToId();
 
             // 检查接收方是否连接在【当前微服务节点】
-            Session targetSession = ChatEndpoint.onlineUsers.get(toName);
+            Session targetSession = ChatEndpoint.onlineUsers.get(toId);
             if (targetSession != null && targetSession.isOpen()) {
                 try {
                     targetSession.getBasicRemote().sendText(

@@ -23,10 +23,10 @@ public class ChatEndpoint {
     public static final Map<Long, Session> onlineUsers = new ConcurrentHashMap<>();
 
     // 解决 @ServerEndpoint 类中无法直接 @Autowired 注入 Spring Bean 的问题
-    private static RedisTemplate<String, Long> redisTemplate;
+    private static RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
-    public void setRedisTemplate(RedisTemplate<String, Long> redisTemplate) {
+    public void setRedisTemplate(RedisTemplate<String, Object> redisTemplate) {
         ChatEndpoint.redisTemplate = redisTemplate;
     }
 
@@ -64,8 +64,10 @@ public class ChatEndpoint {
 
         // 构造需要在集群中路由的完整消息体
         RedisChatMessage redisMsg = new RedisChatMessage();
+        redisMsg.setFromId(this.currentUserId);
         redisMsg.setFromName(this.currentUserName);
-        redisMsg.setToName(msg.getToName());
+        redisMsg.setToId(msg.getToId());
+//        redisMsg.setToName(msg.getToName());
         redisMsg.setMessage(msg.getMessage());
 
         // 将消息发布到 Redis 的 chat_msg_channel 频道，交由监听器分发
@@ -86,9 +88,9 @@ public class ChatEndpoint {
     public void onClose(Session session) {
         if (this.currentUserName != null) {
             // 从本节点移除
-            onlineUsers.remove(this.currentUserName);
+            onlineUsers.remove(this.currentUserId);
             // 从全局 Redis 移除
-            redisTemplate.opsForSet().remove("chat:online_users", this.currentUserName);
+            redisTemplate.opsForSet().remove("chat:online_users", this.currentUserId);
 
             // 广播下线消息
             broadcastOnlineStatus();
@@ -101,7 +103,7 @@ public class ChatEndpoint {
     }
 
     private void broadcastOnlineStatus() {
-        Set<String> allOnlineUsers = redisTemplate.opsForSet().members("chat:online_users");
+        Set<Object> allOnlineUsers = redisTemplate.opsForSet().members("chat:online_users");
         String message = MessageUtils.getOnlineUsersMessage(allOnlineUsers);
         // 将系统广播消息发送到专门的广播频道
         redisTemplate.convertAndSend("chat_sys_channel", message);
