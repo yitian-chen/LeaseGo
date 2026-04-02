@@ -20,32 +20,39 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatEndpoint {
 
     // 本地内存仍需保留，但只存放连接到【当前微服务节点】的 Session
-    public static final Map<String, Session> onlineUsers = new ConcurrentHashMap<>();
+    public static final Map<Long, Session> onlineUsers = new ConcurrentHashMap<>();
 
     // 解决 @ServerEndpoint 类中无法直接 @Autowired 注入 Spring Bean 的问题
-    private static RedisTemplate<String, String> redisTemplate;
+    private static RedisTemplate<String, Long> redisTemplate;
 
     @Autowired
-    public void setRedisTemplate(RedisTemplate<String, String> redisTemplate) {
+    public void setRedisTemplate(RedisTemplate<String, Long> redisTemplate) {
         ChatEndpoint.redisTemplate = redisTemplate;
     }
 
     // 当前连接的用户名
     private String currentUserName;
 
+    // 当前连接的用户 id
+    private Long currentUserId;
+
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) {
-        // 从握手配置器中获取 username
+        // 从握手配置器中获取 username 与 id
         this.currentUserName = (String) config.getUserProperties().get("username");
         if (this.currentUserName == null) {
             return;
         }
+        this.currentUserId = (Long) config.getUserProperties().get("userId");
+        if (this.currentUserId == null) {
+            return;
+        }
 
         // 保存到本节点内存
-        onlineUsers.put(this.currentUserName, session);
+        onlineUsers.put(this.currentUserId, session);
 
         // 存入 Redis，维护全局在线用户列表
-        redisTemplate.opsForSet().add("chat:online_users", this.currentUserName);
+        redisTemplate.opsForSet().add("chat:online_users", this.currentUserId);
 
         // 广播上线消息（通知其他节点）
         broadcastOnlineStatus();

@@ -25,9 +25,11 @@ public class AuthWebSocketConfigurator extends ServerEndpointConfig.Configurator
                 // 直接调用 JwtUtil 解析 token
                 Claims claims = JwtUtil.parseToken(token);
                 String username = claims.get("username", String.class);
+                Long userId = claims.get("userId", Long.class);
 
                 // 将 username 存入当前 WebSocket 的用户属性中，方便后续调用
                 sec.getUserProperties().put("username", username);
+                sec.getUserProperties().put("userId", userId);
             } catch (Exception e) {
                 throw new LeaseException(ResultCodeEnum.TOKEN_INVALID);
             }
