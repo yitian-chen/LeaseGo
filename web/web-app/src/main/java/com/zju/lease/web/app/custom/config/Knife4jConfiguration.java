@@ -26,7 +26,7 @@ public class Knife4jConfiguration {
     @Bean
     public GroupedOpenApi loginAPI() {
         return GroupedOpenApi.builder().group("登录信息").
-                pathsToMatch("/app/login/**", "/app/info").
+                pathsToMatch("/app/login/**", "/app/info", "/app/updateNickname").
                 build();
     }
 

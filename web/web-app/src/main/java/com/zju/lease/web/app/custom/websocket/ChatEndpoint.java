@@ -102,7 +102,7 @@ public class ChatEndpoint {
 
     private void broadcastOnlineStatus() {
         Set<String> allOnlineUsers = redisTemplate.opsForSet().members("chat:online_users");
-        String message = MessageUtils.getMessage(true, null, MessageUtils.getOnlineUsersMessage(allOnlineUsers));
+        String message = MessageUtils.getOnlineUsersMessage(allOnlineUsers);
         // 将系统广播消息发送到专门的广播频道
         redisTemplate.convertAndSend("chat_sys_channel", message);
     }
