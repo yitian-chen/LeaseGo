@@ -1,5 +1,9 @@
 package com.zju.lease.common.utils;
 
+import com.alibaba.fastjson2.JSON;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class MessageUtils {
@@ -21,24 +25,11 @@ public class MessageUtils {
         return sb.toString();
     }
 
-    public static String getOnlineUsersMessage(Set<String> onlineUsers) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        sb.append("\"system\": true,");
-        sb.append("\"fromName\": null,");
-        sb.append("\"message\": [");
-        
-        int i = 0;
-        for (String user : onlineUsers) {
-            if (i > 0) {
-                sb.append(",");
-            }
-            sb.append("\"").append(user).append("\"");
-            i++;
-        }
-
-        sb.append("]");
-        sb.append("}");
-        return sb.toString();
+    public static String getOnlineUsersMessage(Set<Object> onlineUsers) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("system", true);
+        result.put("fromName", "系统");
+        result.put("message", onlineUsers); // 返回当前在线的 ID 列表
+        return JSON.toJSONString(result);
     }
 }

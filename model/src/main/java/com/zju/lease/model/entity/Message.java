@@ -4,8 +4,7 @@ import lombok.Data;
 
 @Data
 public class Message {
-    private Long fromId;
-    private String toName;
-    private String toId;
+    private Long toId;
+//    private String toName;
     private String message;
 }
