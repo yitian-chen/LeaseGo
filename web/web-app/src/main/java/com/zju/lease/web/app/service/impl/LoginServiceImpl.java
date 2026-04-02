@@ -52,48 +52,6 @@ public class LoginServiceImpl implements LoginService {
         redisTemplate.opsForValue().set(key, code, RedisConstant.APP_LOGIN_CODE_TTL_SEC, TimeUnit.SECONDS);
     }
 
-//    @Override
-//    public String login(LoginVo loginVo) {
-//        if (loginVo.getPhone() == null) {
-//            throw new LeaseException(ResultCodeEnum.APP_LOGIN_PHONE_EMPTY);
-//        }
-//
-//        if (loginVo.getCode() == null) {
-//            throw new LeaseException(ResultCodeEnum.APP_LOGIN_CODE_EMPTY);
-//        }
-//
-//        String key = RedisConstant.APP_LOGIN_PREFIX + loginVo.getPhone();
-//        String code = redisTemplate.opsForValue().get(key);
-//
-//        if (code == null) {
-//            throw new LeaseException(ResultCodeEnum.APP_LOGIN_CODE_EXPIRED);
-//        }
-//
-//        if (!code.equals(loginVo.getCode())) {
-//            throw new LeaseException(ResultCodeEnum.APP_LOGIN_CODE_ERROR);
-//        }
-//
-//        LambdaQueryWrapper<UserInfo> queryWrapper = new LambdaQueryWrapper<>();
-//        queryWrapper.eq(UserInfo::getPhone, loginVo.getPhone());
-//        UserInfo userInfo = userInfoMapper.selectOne(queryWrapper);
-//
-//        // 新用户 -> 注册
-//        if (userInfo == null) {
-//            userInfo = new UserInfo();
-//            userInfo.setPhone(loginVo.getPhone());
-//            userInfo.setStatus(BaseStatus.ENABLE);
-//            userInfo.setNickname("用户-" + loginVo.getPhone().substring(7));
-//            userInfoMapper.insert(userInfo);
-//        } else {
-//            // 老用户 -> 检查状态
-//            if (userInfo.getStatus() == BaseStatus.DISABLE) {
-//                throw new LeaseException(ResultCodeEnum.APP_ACCOUNT_DISABLED_ERROR);
-//            }
-//        }
-//
-//        return JwtUtil.createToken(userInfo.getId(), userInfo.getPhone());
-//    }
-
     @Override
     public String login(LoginVo loginVo) {
         if (loginVo.getPhone() == null) {
@@ -168,7 +126,7 @@ public class LoginServiceImpl implements LoginService {
 
         // 登录成功，清理 redis 验证码防止复用
         redisTemplate.delete(key);
-        return JwtUtil.createToken(userInfo.getId(), userInfo.getPhone());
+        return JwtUtil.createToken(userInfo.getId(), userInfo.getNickname());
     }
 
     private String loginByPassword(LoginVo loginVo, UserInfo userInfo) {
@@ -188,7 +146,7 @@ public class LoginServiceImpl implements LoginService {
 
         // 登录成功，清理 redis 图形验证码
         redisTemplate.delete(loginVo.getCaptchaKey());
-        return JwtUtil.createToken(userInfo.getId(), userInfo.getPhone());
+        return JwtUtil.createToken(userInfo.getId(), userInfo.getNickname());
     }
 
     @Override
