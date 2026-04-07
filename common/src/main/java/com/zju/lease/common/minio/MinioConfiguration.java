@@ -17,12 +17,11 @@ public class MinioConfiguration {
     @Autowired
     private MinioProperties properties;
 
-    OkHttpClient httpClient = new OkHttpClient.Builder()
-            .proxy(Proxy.NO_PROXY)
-            .build();
-
     @Bean
     public MinioClient minioClient() {
+        OkHttpClient httpClient = new OkHttpClient.Builder()
+                .proxy(Proxy.NO_PROXY)
+                .build();
         return MinioClient.builder()
                 .endpoint(properties.getEndpoint())
                 .credentials(properties.getAccessKey(), properties.getSecretKey())

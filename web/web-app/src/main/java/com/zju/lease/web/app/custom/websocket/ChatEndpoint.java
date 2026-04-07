@@ -1,98 +1,89 @@
 package com.zju.lease.web.app.custom.websocket;
 
-import com.alibaba.fastjson2.JSON;
-import com.zju.lease.common.utils.MessageUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.zju.lease.model.entity.Message;
 import com.zju.lease.model.entity.RedisChatMessage;
+import com.zju.lease.model.entity.ChatResponseMessage;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @ServerEndpoint(value = "/app/chat", configurator = AuthWebSocketConfigurator.class)
 @Component
 public class ChatEndpoint {
 
-    // 本地内存仍需保留，但只存放连接到【当前微服务节点】的 Session
     public static final Map<Long, Session> onlineUsers = new ConcurrentHashMap<>();
-
-    // 解决 @ServerEndpoint 类中无法直接 @Autowired 注入 Spring Bean 的问题
     private static RedisTemplate<String, Object> redisTemplate;
+    private static StringRedisTemplate stringRedisTemplate;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
-    public void setRedisTemplate(RedisTemplate<String, Object> redisTemplate) {
+    public void setRedisTemplate(@Qualifier("myRedisTemplate") RedisTemplate<String, Object> redisTemplate) {
         ChatEndpoint.redisTemplate = redisTemplate;
     }
 
-    // 当前连接的用户名
-    private String currentUserName;
+    @Autowired
+    public void setStringRedisTemplate(StringRedisTemplate stringRedisTemplate) {
+        ChatEndpoint.stringRedisTemplate = stringRedisTemplate;
+    }
 
-    // 当前连接的用户 id
+    private String currentUserName;
     private Long currentUserId;
 
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) {
-        // 从握手配置器中获取 username 与 id
         this.currentUserName = (String) config.getUserProperties().get("username");
-        if (this.currentUserName == null) {
-            return;
-        }
         this.currentUserId = (Long) config.getUserProperties().get("userId");
-        if (this.currentUserId == null) {
-            return;
-        }
+        if (this.currentUserName == null || this.currentUserId == null) return;
 
-        // 保存到本节点内存
         onlineUsers.put(this.currentUserId, session);
 
-        // 存入 Redis，维护全局在线用户列表
-        redisTemplate.opsForSet().add("chat:online_users", this.currentUserId);
-
-        // 广播上线消息（通知其他节点）
+        // 🌟 核心改动：使用 Hash 存储，映射 userId -> userName
+        redisTemplate.opsForHash().put("chat:online_users", this.currentUserId.toString(), this.currentUserName);
         broadcastOnlineStatus();
     }
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        Message msg = JSON.parseObject(message, Message.class);
-
-        // 构造需要在集群中路由的完整消息体
-        RedisChatMessage redisMsg = new RedisChatMessage();
-        redisMsg.setFromId(this.currentUserId);
-        redisMsg.setFromName(this.currentUserName);
-        redisMsg.setToId(msg.getToId());
-//        redisMsg.setToName(msg.getToName());
-        redisMsg.setMessage(msg.getMessage());
-
-        // 将消息发布到 Redis 的 chat_msg_channel 频道，交由监听器分发
-        redisTemplate.convertAndSend("chat_msg_channel", JSON.toJSONString(redisMsg));
-
-        // 私聊消息也发给自己一份，用于前端回显
         try {
-            session.getBasicRemote().sendText(
-                    "{\"system\": false, \"fromName\": \"" + this.currentUserName
-                            + "\", \"message\": \"" + msg.getMessage() + "\"}"
-            );
-        } catch (IOException e) {
+            Message msg = objectMapper.readValue(message, Message.class);
+
+            System.out.println("【1. 收到前端消息】尝试发给 toId: " + msg.getToId() + ", 内容: " + msg.getMessage());
+
+            // 发送到 Redis 频道，交由集群分发
+            RedisChatMessage redisMsg = new RedisChatMessage();
+            redisMsg.setFromId(this.currentUserId);
+            redisMsg.setFromName(this.currentUserName);
+            redisMsg.setToId(msg.getToId());
+            redisMsg.setMessage(msg.getMessage());
+            // 直接发送对象，由 RedisTemplate 的 GenericJackson2JsonRedisSerializer 统一处理序列化
+            redisTemplate.convertAndSend("chat_msg_channel", redisMsg);
+
+            // 私聊消息发给自己一份 (用于前端回显)
+            ChatResponseMessage echoMsg = new ChatResponseMessage(false, this.currentUserId, this.currentUserName, msg.getMessage());
+            session.getBasicRemote().sendText(objectMapper.writeValueAsString(echoMsg));
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-        if (this.currentUserName != null) {
-            // 从本节点移除
+        if (this.currentUserId != null) {
             onlineUsers.remove(this.currentUserId);
-            // 从全局 Redis 移除
-            redisTemplate.opsForSet().remove("chat:online_users", this.currentUserId);
-
-            // 广播下线消息
+            // 从 Hash 中移除
+            redisTemplate.opsForHash().delete("chat:online_users", this.currentUserId.toString());
             broadcastOnlineStatus();
         }
     }
@@ -103,9 +94,25 @@ public class ChatEndpoint {
     }
 
     private void broadcastOnlineStatus() {
-        Set<Object> allOnlineUsers = redisTemplate.opsForSet().members("chat:online_users");
-        String message = MessageUtils.getOnlineUsersMessage(allOnlineUsers);
-        // 将系统广播消息发送到专门的广播频道
-        redisTemplate.convertAndSend("chat_sys_channel", message);
+        // 从 Hash 获取所有在线用户
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries("chat:online_users");
+
+        // 构造前端需要的对象列表 [{userId: 1, nickname: "chen"}, ...]
+        List<Map<String, Object>> onlineList = new ArrayList<>();
+        for (Map.Entry<Object, Object> entry : entries.entrySet()) {
+            Map<String, Object> userNode = new HashMap<>();
+            userNode.put("userId", Long.valueOf(entry.getKey().toString()));
+            userNode.put("nickname", entry.getValue().toString());
+            onlineList.add(userNode);
+        }
+
+        // 封装为标准系统响应并广播
+        ChatResponseMessage sysMsg = new ChatResponseMessage(true, null, "系统", onlineList);
+        try {
+            // 使用 StringRedisTemplate 发送纯 JSON 字符串，不包含类型信息
+            stringRedisTemplate.convertAndSend("chat_sys_channel", objectMapper.writeValueAsString(sysMsg));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
     }
 }

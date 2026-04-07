@@ -1,7 +1,8 @@
 package com.zju.lease.web.app.custom.websocket;
 
-import com.alibaba.fastjson2.JSON;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zju.lease.model.entity.RedisChatMessage;
+import com.zju.lease.model.entity.ChatResponseMessage;
 import jakarta.websocket.Session;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
@@ -12,40 +13,57 @@ import java.io.IOException;
 @Component
 public class ChatRedisMessageListener implements MessageListener {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public void onMessage(Message message, byte[] pattern) {
         String channel = new String(message.getChannel());
-        String body = new String(message.getBody());
 
-        if ("chat_msg_channel".equals(channel)) {
-            // 处理私聊消息
-            RedisChatMessage redisMsg = JSON.parseObject(body, RedisChatMessage.class);
+        try {
+            if ("chat_msg_channel".equals(channel)) {
+                // 使用 Jackson 反序列化，与 RedisTemplate 的 GenericJackson2JsonRedisSerializer 保持一致
+                RedisChatMessage redisMsg = objectMapper.readValue(message.getBody(), RedisChatMessage.class);
+                Long toId = redisMsg.getToId();
 
-            Long toId = redisMsg.getToId();
+                System.out.println("【2. 监听器收到 Redis 消息】准备投递给 toId: " + toId);
 
-            // 检查接收方是否连接在【当前微服务节点】
-            Session targetSession = ChatEndpoint.onlineUsers.get(toId);
-            if (targetSession != null && targetSession.isOpen()) {
-                try {
-                    targetSession.getBasicRemote().sendText(
-                            "{\"system\": false, \"fromName\": \"" + redisMsg.getFromName()
-                                    + "\", \"message\": \"" + redisMsg.getMessage() + "\"}"
-                    );
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        } else if ("chat_sys_channel".equals(channel)) {
-            // 处理系统广播消息（如上下线），群发给本节点连接的所有用户
-            ChatEndpoint.onlineUsers.values().forEach(session -> {
-                if (session.isOpen()) {
+                Session targetSession = ChatEndpoint.onlineUsers.get(toId);
+                if (targetSession != null && targetSession.isOpen()) {
+
+                    System.out.println("【3. 投递成功】在本地找到了 toId: " + toId + " 的 Session");
+
+                    // 使用 Jackson 序列化响应
+                    String responseJson = objectMapper.writeValueAsString(new ChatResponseMessage(
+                            false,
+                            redisMsg.getFromId(),
+                            redisMsg.getFromName(),
+                            redisMsg.getMessage()
+                    ));
                     try {
-                        session.getBasicRemote().sendText(body);
+                        targetSession.getBasicRemote().sendText(responseJson);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                } else {
+                    System.out.println("【3. 投递失败】本地未找到 toId: " + toId + " 的在线 Session");
+                    System.out.println("当前本地在线的 ID 有: " + ChatEndpoint.onlineUsers.keySet());
                 }
-            });
+            } else if ("chat_sys_channel".equals(channel)) {
+                // 系统广播：直接将 body 转为字符串转发
+                String body = new String(message.getBody());
+                ChatEndpoint.onlineUsers.values().forEach(session -> {
+                    if (session.isOpen()) {
+                        try {
+                            session.getBasicRemote().sendText(body);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
+        } catch (Exception e) {
+            System.out.println("【监听器处理消息失败】" + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
