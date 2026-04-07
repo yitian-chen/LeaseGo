@@ -25,13 +25,8 @@ public class ChatRedisMessageListener implements MessageListener {
                 RedisChatMessage redisMsg = objectMapper.readValue(message.getBody(), RedisChatMessage.class);
                 Long toId = redisMsg.getToId();
 
-                System.out.println("【2. 监听器收到 Redis 消息】准备投递给 toId: " + toId);
-
                 Session targetSession = ChatEndpoint.onlineUsers.get(toId);
                 if (targetSession != null && targetSession.isOpen()) {
-
-                    System.out.println("【3. 投递成功】在本地找到了 toId: " + toId + " 的 Session");
-
                     // 使用 Jackson 序列化响应
                     String responseJson = objectMapper.writeValueAsString(new ChatResponseMessage(
                             false,
@@ -44,9 +39,6 @@ public class ChatRedisMessageListener implements MessageListener {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                } else {
-                    System.out.println("【3. 投递失败】本地未找到 toId: " + toId + " 的在线 Session");
-                    System.out.println("当前本地在线的 ID 有: " + ChatEndpoint.onlineUsers.keySet());
                 }
             } else if ("chat_sys_channel".equals(channel)) {
                 // 系统广播：直接将 body 转为字符串转发
@@ -62,7 +54,6 @@ public class ChatRedisMessageListener implements MessageListener {
                 });
             }
         } catch (Exception e) {
-            System.out.println("【监听器处理消息失败】" + e.getMessage());
             e.printStackTrace();
         }
     }

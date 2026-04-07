@@ -49,7 +49,7 @@ public class ChatEndpoint {
 
         onlineUsers.put(this.currentUserId, session);
 
-        // 🌟 核心改动：使用 Hash 存储，映射 userId -> userName
+        // 使用 Hash 存储，映射 userId -> userName
         redisTemplate.opsForHash().put("chat:online_users", this.currentUserId.toString(), this.currentUserName);
         broadcastOnlineStatus();
     }
@@ -58,8 +58,6 @@ public class ChatEndpoint {
     public void onMessage(String message, Session session) {
         try {
             Message msg = objectMapper.readValue(message, Message.class);
-
-            System.out.println("【1. 收到前端消息】尝试发给 toId: " + msg.getToId() + ", 内容: " + msg.getMessage());
 
             // 发送到 Redis 频道，交由集群分发
             RedisChatMessage redisMsg = new RedisChatMessage();
