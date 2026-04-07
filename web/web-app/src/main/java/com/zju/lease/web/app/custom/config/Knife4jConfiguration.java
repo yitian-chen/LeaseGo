@@ -53,4 +53,11 @@ public class Knife4jConfiguration {
                 ).
                 build();
     }
+
+    @Bean
+    public GroupedOpenApi chatAPI() {
+        return GroupedOpenApi.builder().group("聊天室").
+                pathsToMatch("/app/chat/**").
+                build();
+    }
 }

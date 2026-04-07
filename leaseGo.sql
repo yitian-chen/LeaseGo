@@ -5825,3 +5825,30 @@ INSERT INTO `view_appointment` VALUES (10, 7, '张三', '13888888888', 9, '2023-
 INSERT INTO `view_appointment` VALUES (11, 7, '张三', '13888888888', 10, '2023-08-14 14:45:20', '', 1, '2023-08-14 12:45:51', '2023-08-14 14:49:58', 0);
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ----------------------------
+-- Table structure for chat_conversation and chat_message
+-- ----------------------------
+
+CREATE TABLE `chat_conversation` (
+                                     `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+                                     `user_id1` bigint NOT NULL COMMENT '用户1 ID',
+                                     `user_id2` bigint NOT NULL COMMENT '用户2 ID',
+                                     `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                     `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                                     `is_deleted` tinyint DEFAULT 0 COMMENT '逻辑删除',
+                                     PRIMARY KEY (`id`),
+                                     KEY `idx_user_ids` (`user_id1`, `user_id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会话表';
+
+CREATE TABLE `chat_message` (
+                                `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+                                `conversation_id` bigint NOT NULL COMMENT '会话ID',
+                                `from_id` bigint NOT NULL COMMENT '发送者ID',
+                                `message` text NOT NULL COMMENT '消息内容',
+                                `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+                                `is_deleted` tinyint DEFAULT 0 COMMENT '逻辑删除',
+                                PRIMARY KEY (`id`),
+                                KEY `idx_conversation_id` (`conversation_id`),
+                                KEY `idx_from_id` (`from_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='聊天消息表';

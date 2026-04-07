@@ -22,7 +22,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         registry.addInterceptor(this.authenticationInterceptor)
                 .addPathPatterns("/app/**")
                 .excludePathPatterns("/app/login/**")
-                .excludePathPatterns("/app/chat/**");
+                .excludePathPatterns("/app/chat");  // 只排除 WebSocket 端点本身，聊天历史接口需要认证
     }
 
     @Override
