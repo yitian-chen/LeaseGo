@@ -49,13 +49,5 @@ public class LoginController {
         UserInfoVo info = service.getLoginUserById(userId);
         return Result.ok(info);
     }
-
-    @PostMapping("updateNickname")
-    @Operation(summary = "修改用户名")
-    public Result updateNickname(@RequestParam String nickname) {
-        Long userId = LoginUserHolder.getLoginUser().getUserId();
-        service.updateNickname(userId, nickname);
-        return Result.ok();
-    }
 }
 

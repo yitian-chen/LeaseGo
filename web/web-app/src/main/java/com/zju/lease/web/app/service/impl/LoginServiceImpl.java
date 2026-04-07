@@ -186,4 +186,16 @@ public class LoginServiceImpl implements LoginService {
         userInfo.setNickname(nickname);
         userInfoMapper.updateById(userInfo);
     }
+
+    @Override
+    public void updateAvatar(Long userId, String url) {
+        if (StringUtils.isBlank(url)) {
+            throw new LeaseException(ResultCodeEnum.APP_AVATAR_URL_EMPTY);
+        }
+
+        UserInfo userInfo = new UserInfo();
+        userInfo.setId(userId);
+        userInfo.setAvatarUrl(url);
+        userInfoMapper.updateById(userInfo);
+    }
 }

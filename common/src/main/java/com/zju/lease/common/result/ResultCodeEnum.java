@@ -43,6 +43,7 @@ public enum ResultCodeEnum {
     APP_ACCOUNT_ERROR(512, "用户名或密码错误"),
     APP_USERNAME_EMPTY(513, "用户名不能为空"),
     APP_USERNAME_EXIST(514, "用户名已存在"),
+    APP_AVATAR_URL_EMPTY(515, "头像 URL 为空"),
 
 
     TOKEN_EXPIRED(601, "token过期"),

@@ -35,7 +35,7 @@ minio:
   endpoint: http://10.211.55.101:9000
   access-key:
   secret-key:
-  bucket-name: lease
+  bucket-name: lease-app
 
 aliyun:
   sms:

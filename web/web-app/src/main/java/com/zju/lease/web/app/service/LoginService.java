@@ -14,4 +14,6 @@ public interface LoginService {
     CaptchaVo getCaptcha();
 
     void updateNickname(Long userId, String nickname);
+
+    void updateAvatar(Long userId, String url);
 }

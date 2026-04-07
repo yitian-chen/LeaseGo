@@ -26,7 +26,7 @@ public class Knife4jConfiguration {
     @Bean
     public GroupedOpenApi loginAPI() {
         return GroupedOpenApi.builder().group("登录信息").
-                pathsToMatch("/app/login/**", "/app/info", "/app/updateNickname").
+                pathsToMatch("/app/login/**", "/app/info").
                 build();
     }
 
@@ -36,8 +36,16 @@ public class Knife4jConfiguration {
                 pathsToMatch(
                         "/app/history/**",
                         "/app/appointment/**",
-                        "/app/agreement/**"
+                        "/app/agreement/**",
+                        "/app/user/**"
                 ).
+                build();
+    }
+
+    @Bean
+    public GroupedOpenApi fileUploadAPI() {
+        return GroupedOpenApi.builder().group("文件上传").
+                pathsToMatch("/app/file/**").
                 build();
     }
 
