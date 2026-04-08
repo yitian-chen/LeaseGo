@@ -9,4 +9,16 @@
         from user_info
         where phone = #{phone} and is_deleted = 0
     </select>
+
+    <select id="selectByPhone" resultType="com.zju.lease.model.entity.UserInfo">
+        select id, phone, avatar_url, nickname
+        from user_info
+        where phone = #{phone} and is_deleted = 0
+    </select>
+
+    <select id="selectByNicknameLike" resultType="com.zju.lease.model.entity.UserInfo">
+        select id, phone, avatar_url, nickname
+        from user_info
+        where nickname like concat('%', #{nickname}, '%') and is_deleted = 0
+    </select>
 </mapper>
