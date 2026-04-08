@@ -56,7 +56,7 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
 
     @Override
     public List<ChatConversationVo> listConversationVosByUserId(Long userId) {
-        List<ChatConversation> conversations = chatConversationMapper.selectByUserId(userId);
+        List<ChatConversation> conversations = chatConversationMapper.selectWithUnreadCount(userId);
         List<ChatConversationVo> result = new ArrayList<>();
 
         for (ChatConversation conversation : conversations) {
@@ -86,6 +86,9 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
             if (otherUser != null) {
                 vo.setAvatarUrl(otherUser.getAvatarUrl());
             }
+
+            // Get unread count
+            vo.setUnreadCount(conversation.getUnreadCount() != null ? conversation.getUnreadCount() : 0);
 
             result.add(vo);
         }

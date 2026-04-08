@@ -5852,3 +5852,17 @@ CREATE TABLE `chat_message` (
                                 KEY `idx_conversation_id` (`conversation_id`),
                                 KEY `idx_from_id` (`from_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='聊天消息表';
+
+CREATE TABLE `chat_conversation_read` (
+                                          `id` bigint NOT NULL AUTO_INCREMENT,
+                                          `user_id` bigint NOT NULL,
+                                          `conversation_id` bigint NOT NULL,
+                                          `last_read_time` datetime DEFAULT CURRENT_TIMESTAMP,
+                                          `unread_count` int DEFAULT 0,
+                                          `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+                                          `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                          `is_deleted` tinyint DEFAULT 0,
+                                          PRIMARY KEY (`id`),
+                                          UNIQUE KEY `uk_user_conversation` (`user_id`, `conversation_id`),
+                                          KEY `idx_conversation_id` (`conversation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会话已读状态表';

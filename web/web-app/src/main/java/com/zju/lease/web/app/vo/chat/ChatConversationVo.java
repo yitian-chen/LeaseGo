@@ -26,4 +26,7 @@ public class ChatConversationVo {
 
     @Schema(description = "最后消息时间")
     private Date lastMessageTime;
+
+    @Schema(description = "未读消息数量")
+    private Integer unreadCount;
 }

@@ -28,4 +28,7 @@ public class ChatConversation extends BaseEntity implements Serializable {
 
     @TableField(exist = false)
     private Date lastMessageTime;
+
+    @TableField(exist = false)
+    private Integer unreadCount;
 }

@@ -2,9 +2,9 @@ package com.zju.lease.web.app.custom.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zju.lease.model.entity.ChatConversation;
-import com.zju.lease.model.entity.ChatMessage;
 import com.zju.lease.model.entity.RedisChatMessage;
 import com.zju.lease.model.entity.ChatResponseMessage;
+import com.zju.lease.web.app.service.ChatConversationReadService;
 import com.zju.lease.web.app.service.ChatConversationService;
 import com.zju.lease.web.app.service.ChatMessageService;
 import jakarta.websocket.Session;
@@ -26,6 +26,9 @@ public class ChatRedisMessageListener implements MessageListener {
     @Autowired
     private ChatMessageService chatMessageService;
 
+    @Autowired
+    private ChatConversationReadService chatConversationReadService;
+
     @Override
     public void onMessage(Message message, byte[] pattern) {
         String channel = new String(message.getChannel());
@@ -38,9 +41,14 @@ public class ChatRedisMessageListener implements MessageListener {
                 Long fromId = redisMsg.getFromId();
                 String msgText = redisMsg.getMessage();
 
-                // 异步保存消息到数据库
+                // 获取或创建会话
                 ChatConversation conversation = chatConversationService.getOrCreateConversation(fromId, toId);
+
+                // 异步保存消息到数据库
                 chatMessageService.saveMessageAsync(conversation.getId(), fromId, msgText);
+
+                // 异步增加接收者的未读计数（只对接收者增加）
+                chatConversationReadService.incrementUnreadAsync(toId, conversation.getId());
 
                 Session targetSession = ChatEndpoint.onlineUsers.get(toId);
                 if (targetSession != null && targetSession.isOpen()) {
