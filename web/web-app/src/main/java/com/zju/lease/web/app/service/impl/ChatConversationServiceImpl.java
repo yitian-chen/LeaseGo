@@ -82,6 +82,11 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
                 vo.setLastMessageTime(lastMsg.getCreateTime());
             }
 
+            // Get avatar url
+            if (otherUser != null) {
+                vo.setAvatarUrl(otherUser.getAvatarUrl());
+            }
+
             result.add(vo);
         }
         return result;

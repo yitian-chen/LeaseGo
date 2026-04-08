@@ -5,7 +5,7 @@ import com.zju.lease.common.result.Result;
 import com.zju.lease.web.app.service.ChatConversationService;
 import com.zju.lease.web.app.service.ChatMessageService;
 import com.zju.lease.web.app.vo.chat.ChatConversationVo;
-import com.zju.lease.web.app.vo.chat.ChatMessageVo;
+import com.zju.lease.web.app.vo.chat.ChatHistoryVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,9 +37,11 @@ public class ChatController {
 
     @Operation(summary = "获取与某用户的聊天记录")
     @GetMapping("/conversations/{userId}")
-    public Result<List<ChatMessageVo>> getMessages(@PathVariable Long userId) {
+    public Result<ChatHistoryVo> getMessages(@PathVariable Long userId) {
         Long currentUserId = LoginUserHolder.getLoginUser().getUserId();
-        List<ChatMessageVo> messages = chatMessageService.listMessagesByUsers(currentUserId, userId);
-        return Result.ok(messages);
+        ChatHistoryVo history = chatMessageService.listMessagesByUsers(currentUserId, userId);
+        return Result.ok(history);
     }
 }
+
+// TODO: 对话列表页面的同步问题

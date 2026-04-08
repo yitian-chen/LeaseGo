@@ -18,6 +18,9 @@ public class ChatConversationVo {
     @Schema(description = "对方用户昵称")
     private String otherUserName;
 
+    @Schema(description = "对方用户头像URL")
+    private String avatarUrl;
+
     @Schema(description = "最后一条消息")
     private String lastMessage;
 

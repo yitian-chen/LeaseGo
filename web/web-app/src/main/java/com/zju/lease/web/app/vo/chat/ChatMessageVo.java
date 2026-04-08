@@ -18,6 +18,9 @@ public class ChatMessageVo {
     @Schema(description = "发送者昵称")
     private String fromName;
 
+    @Schema(description = "发送者头像URL")
+    private String avatarUrl;
+
     @Schema(description = "消息内容")
     private String message;
 
