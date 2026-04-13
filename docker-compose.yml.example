@@ -1,0 +1,25 @@
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: leasego-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_DATABASE=lease
+    ports:
+      - "3307:3306"
+    restart: always
+    volumes:
+      -
+  minio:
+    image: minio/minio
+    container_name: leasego-minio
+    ports:
+      - "9000:9000"       # API 端口
+      - "9001:9001"       # 控制台管理页面端口
+    environment:
+      MINIO_ROOT_USER: minioadmin      # 你的登录账号
+      MINIO_ROOT_PASSWORD:   # 你的登录密码
+    volumes:
+      -             # 将刚才解压的备份文件内容放入这里的 ./minio_data
+    command: server /data --console-address ":9001"
+    restart: always

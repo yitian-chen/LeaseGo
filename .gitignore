@@ -52,3 +52,9 @@ web/web-app/src/test/java/com/zju/lease/web/app/service/impl/SmsServiceImplTest.
 .mvn
 
 docs
+
+init/leasego_backup.sql
+
+init
+
+docker-compose.yml
