@@ -9,7 +9,7 @@ services:
       - "3307:3306"
     restart: always
     volumes:
-      -
+      - /Users/chen./docker-data/leasego/mysql:/var/lib/mysql  # 将本地目录挂载到容器中，持久化数据
   minio:
     image: minio/minio
     container_name: leasego-minio
@@ -20,6 +20,15 @@ services:
       MINIO_ROOT_USER: minioadmin      # 你的登录账号
       MINIO_ROOT_PASSWORD:   # 你的登录密码
     volumes:
-      -             # 将刚才解压的备份文件内容放入这里的 ./minio_data
+      - /Users/chen./docker-data/leasego/minio            # 将刚才解压的备份文件内容放入这里的 ./minio_data
     command: server /data --console-address ":9001"
     restart: always
+  redis:
+    image: redis:7.0  # 建议版本与 Ubuntu 一致
+    container_name: leasego-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - /Users/chen./docker-data/leasego/redis   # 挂载数据目录
+    command: redis-server --appendonly yes  # 开启 AOF 持久化，更安全

@@ -58,3 +58,7 @@ init/leasego_backup.sql
 init
 
 docker-compose.yml
+
+opt
+
+.claude
