@@ -44,6 +44,8 @@ build/
 ### Applications ###
 **/src/main/resources/application.yml
 !**/src/main/resources/application.yml.example
+**/src/main/resources/bootstrap.yml
+!**/src/main/resources/bootstrap.yml.example
 
 # 忽略短信服务测试类（包含个人手机号）
 web/web-app/src/test/java/com/zju/lease/web/app/service/impl/SmsServiceImplTest.java
