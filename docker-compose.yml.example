@@ -1,34 +1,483 @@
+# ==================== LeaseGo 微服务 Docker 配置 ====================
+# 使用方式:
+# 1. cp docker-compose.yml.example docker-compose.yml
+# 2. 复制 .env.example 为 .env 并填写真实配置
+# 3. docker-compose up -d
+
 services:
-  mysql-db:
+  # ==================== 基础设施服务 ====================
+
+  # MySQL 数据库
+  mysql:
     image: mysql:8.0
     container_name: leasego-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=
-      - MYSQL_DATABASE=lease
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_DATABASE: lease
+      TZ: Asia/Shanghai
     ports:
-      - "3307:3306"
-    restart: always
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
-      - /Users/chen./docker-data/leasego/mysql:/var/lib/mysql  # 将本地目录挂载到容器中，持久化数据
+      - mysql-data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - leasego-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7.0
+    container_name: leasego-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - leasego-network
+
+  # Nacos 服务注册与配置中心
+  nacos:
+    image: nacos/nacos-server:v2.2.1
+    container_name: leasego-nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_DB_NAME: nacos
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_SERVICE_DB_PARAM: characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+      JVM_XMS: 512m
+      JVM_XMX: 512m
+      JVM_XMN: 256m
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - nacos-data:/home/nacos/data
+      - nacos-logs:/home/nacos/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # Sentinel 流量控制台
+  sentinel:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: leasego-sentinel
+    environment:
+      JAVA_OPTS: "-Dserver.port=8858 -Dcsp.sentinel.dashboard.server=localhost:8858 -Dproject.name=sentinel-dashboard"
+    ports:
+      - "8858:8858"
+    restart: always
+    networks:
+      - leasego-network
+
+  # RocketMQ NameServer
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.0
+    container_name: leasego-rocketmq-namesrv
+    ports:
+      - "9876:9876"
+    volumes:
+      - rocketmq-namesrv-data:/home/rocketmq/rocketmq-5.1.0/data
+    command: sh mqnamesrv
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9876"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+    networks:
+      - leasego-network
+
+  # RocketMQ Broker
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.0
+    container_name: leasego-rocketmq-broker
+    ports:
+      - "10911:10911"
+      - "10912:10912"
+    volumes:
+      - rocketmq-broker-data:/home/rocketmq/rocketmq-5.1.0/data
+      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.1.0/conf/broker.conf
+    command: sh mqbroker -c /home/rocketmq/rocketmq-5.1.0/conf/broker.conf
+    depends_on:
+      rocketmq-namesrv:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # MinIO 对象存储
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: leasego-minio
     ports:
-      - "9000:9000"       # API 端口
-      - "9001:9001"       # 控制台管理页面端口
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin      # 你的登录账号
-      MINIO_ROOT_PASSWORD:   # 你的登录密码
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     volumes:
-      - /Users/chen./docker-data/leasego/minio            # 将刚才解压的备份文件内容放入这里的 ./minio_data
+      - minio-data:/data
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
     restart: always
-  redis:
-    image: redis:7.0  # 建议版本与 Ubuntu 一致
-    container_name: leasego-redis
-    restart: always
+    networks:
+      - leasego-network
+
+  # ==================== 应用服务 ====================
+
+  # API 网关 (8080)
+  gateway:
+    build:
+      context: .
+      dockerfile: leasego-gateway/Dockerfile
+    container_name: leasego-gateway
     ports:
-      - "6379:6379"
-    volumes:
-      - /Users/chen./docker-data/leasego/redis   # 挂载数据目录
-    command: redis-server --appendonly yes  # 开启 AOF 持久化，更安全
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+    depends_on:
+      nacos:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 认证服务 (8081)
+  auth:
+    build:
+      context: .
+      dockerfile: leasego-auth/Dockerfile
+    container_name: leasego-auth
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ALIYUN_ACCESS_KEY_ID: ${ALIYUN_ACCESS_KEY_ID:-}
+      ALIYUN_ACCESS_KEY_SECRET: ${ALIYUN_ACCESS_KEY_SECRET:-}
+      ALIYUN_SMS_SIGN_NAME: ${ALIYUN_SMS_SIGN_NAME:-}
+      ALIYUN_SMS_TEMPLATE_CODE: ${ALIYUN_SMS_TEMPLATE_CODE:-}
+      JWT_SECRET: ${JWT_SECRET:-leasego-jwt-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 用户权限服务 (8082)
+  upms:
+    build:
+      context: .
+      dockerfile: leasego-upms/Dockerfile
+    container_name: leasego-upms
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 区域服务 (8083)
+  region:
+    build:
+      context: .
+      dockerfile: leasego-region/Dockerfile
+    container_name: leasego-region
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 公寓服务 (8084)
+  apartment:
+    build:
+      context: .
+      dockerfile: leasego-apartment/Dockerfile
+    container_name: leasego-apartment
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-lease}
+      ROCKETMQ_HOST: rocketmq-namesrv
+      ROCKETMQ_PORT: 9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 预约服务 (8085)
+  appointment:
+    build:
+      context: .
+      dockerfile: leasego-appointment/Dockerfile
+    container_name: leasego-appointment
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ROCKETMQ_HOST: rocketmq-namesrv
+      ROCKETMQ_PORT: 9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 租赁服务 (8086)
+  lease:
+    build:
+      context: .
+      dockerfile: leasego-lease/Dockerfile
+    container_name: leasego-lease
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ROCKETMQ_HOST: rocketmq-namesrv
+      ROCKETMQ_PORT: 9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 聊天服务 (8087)
+  chat:
+    build:
+      context: .
+      dockerfile: leasego-chat/Dockerfile
+    container_name: leasego-chat
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ROCKETMQ_HOST: rocketmq-namesrv
+      ROCKETMQ_PORT: 9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 文件服务 (8088)
+  file:
+    build:
+      context: .
+      dockerfile: leasego-file/Dockerfile
+    container_name: leasego-file
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-lease}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+  # 短信服务 (8089)
+  sms:
+    build:
+      context: .
+      dockerfile: leasego-sms/Dockerfile
+    container_name: leasego-sms
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_HOST: nacos
+      NACOS_PORT: 8848
+      ALIYUN_ACCESS_KEY_ID: ${ALIYUN_ACCESS_KEY_ID:-}
+      ALIYUN_ACCESS_KEY_SECRET: ${ALIYUN_ACCESS_KEY_SECRET:-}
+      ALIYUN_SMS_SIGN_NAME: ${ALIYUN_SMS_SIGN_NAME:-}
+      ALIYUN_SMS_TEMPLATE_CODE: ${ALIYUN_SMS_TEMPLATE_CODE:-}
+    depends_on:
+      nacos:
+        condition: service_healthy
+    restart: always
+    networks:
+      - leasego-network
+
+# ==================== 网络和存储 ====================
+
+networks:
+  leasego-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  nacos-data:
+  nacos-logs:
+  rocketmq-namesrv-data:
+  rocketmq-broker-data:
+  minio-data:
