@@ -59,19 +59,7 @@
         <!-- 公共模块 -->
         <dependency>
             <groupId>com.zju</groupId>
-            <artifactId>leasego-common-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.zju</groupId>
-            <artifactId>leasego-common-mybatis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.zju</groupId>
-            <artifactId>leasego-common-redis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.zju</groupId>
-            <artifactId>leasego-common-swagger</artifactId>
+            <artifactId>leasego-common</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zju</groupId>

@@ -44,8 +44,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Spring Cloud Alibaba 版本 -->
-        <spring.cloud.version>2021.0.3</spring.cloud.version>
-        <spring.cloud.alibaba.version>2021.0.1.0</spring.cloud.alibaba.version>
+        <spring.cloud.version>2022.0.1</spring.cloud.version>
+        <spring.cloud.alibaba.version>2022.0.0.0</spring.cloud.alibaba.version>
 
         <!-- 服务版本 -->
         <nacos.version>2.2.1</nacos.version>
@@ -182,22 +182,7 @@
             <!-- ==================== 公共模块 ==================== -->
             <dependency>
                 <groupId>com.zju</groupId>
-                <artifactId>leasego-common-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.zju</groupId>
-                <artifactId>leasego-common-mybatis</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.zju</groupId>
-                <artifactId>leasego-common-redis</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.zju</groupId>
-                <artifactId>leasego-common-swagger</artifactId>
+                <artifactId>leasego-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

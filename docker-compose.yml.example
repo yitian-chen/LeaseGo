@@ -53,23 +53,17 @@ services:
 
   # Nacos 服务注册与配置中心
   nacos:
-    image: nacos/nacos-server:v2.2.1
+    image: nacos/nacos-server:v2.3.1
     container_name: leasego-nacos
     environment:
       MODE: standalone
-      SPRING_DATASOURCE_PLATFORM: mysql
-      MYSQL_SERVICE_HOST: mysql
-      MYSQL_SERVICE_DB_NAME: nacos
-      MYSQL_SERVICE_PORT: 3306
-      MYSQL_SERVICE_USER: root
-      MYSQL_SERVICE_PASSWORD: ${MYSQL_PASSWORD:-root}
-      MYSQL_SERVICE_DB_PARAM: characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
       JVM_XMS: 512m
       JVM_XMX: 512m
       JVM_XMN: 256m
     ports:
       - "8848:8848"
       - "9848:9848"
+      - "9849:9849"
     volumes:
       - nacos-data:/home/nacos/data
       - nacos-logs:/home/nacos/logs
@@ -78,9 +72,6 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-    depends_on:
-      mysql:
-        condition: service_healthy
     restart: always
     networks:
       - leasego-network
@@ -223,6 +214,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       NACOS_HOST: nacos
       NACOS_PORT: 8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_USER: root

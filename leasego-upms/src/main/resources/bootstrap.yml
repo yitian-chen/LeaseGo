@@ -4,7 +4,7 @@ spring:
   cloud:
     nacos:
       discovery:
-        enabled: false
+        enabled: true
         server-addr: ${NACOS_HOST:localhost}:${NACOS_PORT:8848}
         namespace: ${NACOS_NAMESPACE:public}
       config:
@@ -41,6 +41,26 @@ spring:
 
 server:
   port: 8082
+
+seata:
+  enabled: false
+  tx-service-group: leasego_tx_group
+  registry:
+    type: nacos
+    nacos:
+      server-addr: ${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+      namespace: ${NACOS_NAMESPACE:}
+      group: DEFAULT_GROUP
+      application: seata-server
+  service:
+    vgroup-mapping:
+      leasego_tx_group: default
+  config:
+    type: nacos
+    nacos:
+      server-addr: ${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+      namespace: ${NACOS_NAMESPACE:}
+      group: DEFAULT_GROUP
 
 mybatis-plus:
   configuration:

@@ -47,17 +47,14 @@
         <!-- 阿里云短信 -->
         <dependency>
             <groupId>com.aliyun</groupId>
-            <artifactId>dysmsapi20170525</artifactId>
+            <artifactId>dypnsapi20170525</artifactId>
+            <version>2.0.0</version>
         </dependency>
 
         <!-- 公共模块 -->
         <dependency>
             <groupId>com.zju</groupId>
-            <artifactId>leasego-common-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.zju</groupId>
-            <artifactId>leasego-common-swagger</artifactId>
+            <artifactId>leasego-common</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zju</groupId>

@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.zju</groupId>
-        <artifactId>lease</artifactId>
+        <artifactId>leasego</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
