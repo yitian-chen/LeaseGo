@@ -41,7 +41,7 @@
         <jwt.version>0.11.2</jwt.version>
         <easycaptcha.version>1.6.2</easycaptcha.version>
         <minio.version>8.5.12</minio.version>
-        <knife4j.version>4.1.0</knife4j.version>
+        <knife4j.version>4.5.0</knife4j.version>
         <aliyun.sms.version>2.0.0</aliyun.sms.version>
         <lombok.version>1.18.30</lombok.version>
         <spring-cloud.version>2022.0.0</spring-cloud.version>
