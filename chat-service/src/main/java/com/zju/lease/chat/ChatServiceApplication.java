@@ -14,7 +14,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @MapperScan("com.zju.lease.chat.mapper")
 @EnableAsync
 @Import(com.zju.lease.common.redis.RedisConfiguration.class)
-@ComponentScan(basePackages = {"com.zju.lease.chat", "com.zju.lease.common.redis", "com.zju.lease.common.interceptor"},
+@ComponentScan(basePackages = {"com.zju.lease.chat", "com.zju.lease.common.redis", "com.zju.lease.common.interceptor", "com.zju.lease.common.mybatisplus"},
     excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
         classes = com.zju.lease.common.minio.MinioConfiguration.class))
 public class ChatServiceApplication {
