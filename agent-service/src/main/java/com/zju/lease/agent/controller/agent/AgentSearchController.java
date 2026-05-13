@@ -28,7 +28,9 @@ public class AgentSearchController {
             @RequestParam String query) {
         log.info("Agent search query: {}", query);
         String response = apartmentSearchAgent.search(query);
-        return Result.ok(response);
+        // 过滤思考标签
+        String cleaned = response.replaceAll("(?s)<think>.*?</think>", "").trim();
+        return Result.ok(cleaned);
     }
 
     @Operation(summary = "手动触发房间数据重新索引",
