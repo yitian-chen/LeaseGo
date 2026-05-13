@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dto">
+<mapper namespace="com.zju.lease.agent.mapper.ApartmentLabelMapper">
+    <select id="selectListByApartmentId" resultType="com.zju.lease.model.entity.LabelInfo">
+        select li.id,
+               li.name,
+               li.type
+        from label_info li
+        where li.is_deleted = 0
+          and li.id in (select label_id
+                        from apartment_label
+                        where is_deleted = 0
+                          and apartment_id = #{apartmentId})
+    </select>
+</mapper>
