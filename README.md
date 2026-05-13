@@ -1,8 +1,8 @@
 # LeaseGo | 公寓租赁管理系统
 
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.0.5-green.svg)](https://spring.io/projects/spring-boot)
-[![MyBatis Plus](https://img.shields.io/badge/MyBatis%20Plus-3.5.3.1-blue.svg)](https://baomidou.com/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.7-green.svg)](https://spring.io/projects/spring-boot)
+[![MyBatis Plus](https://img.shields.io/badge/MyBatis%20Plus-3.5.9-blue.svg)](https://baomidou.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## 项目简介
@@ -14,10 +14,11 @@ LeaseGo 是一款现代化的全栈公寓租赁管理系统，基于 **Spring Bo
 **服务架构：**
 ```
 Client → Gateway(8083) → web-app(8081)
-                   ↓
-              chat-service(8082) [WebSocket]
+                   ├── chat-service(8082) [WebSocket]
+                   └── agent-service(8084) [AI Agent]
 
 Nacos(8848): 服务发现 + 配置中心
+Redis Stack(6379): 缓存存储 + 向量检索
 ```
 
 **模块划分：**
@@ -27,14 +28,20 @@ Nacos(8848): 服务发现 + 配置中心
 - `web-admin`: 后台管理端后端接口。负责公寓、房间、配套、标签、租约及系统用户与移动端用户的权限管理。
 - `web-app`: 用户移动端后端接口。支持手机验证码登录、房源检索、浏览记录、预约看房、个人租约查询。
 - `chat-service`: 独立聊天服务(端口 8082)。基于 WebSocket 实现即时通讯，支持跨实例消息分发(Redis Pub/Sub)。
+- `agent-service`: AI Agent 服务(端口 8084)。基于 LangChain4j + MiniMax + 阿里 DashScope 实现自然语言房源检索。
 
 ## 技术栈
-- **核心框架:** Java 17, Spring Boot 3.0.5, Spring Cloud Alibaba 2022.0.0.0
+- **核心框架:** Java 17, Spring Boot 3.2.7, Spring Cloud Alibaba 2023.0.1.0
 - **服务治理:** Nacos 2.2.3 (服务发现 + 配置中心)
-- **持久层:** MyBatis-Plus 3.5.3.1 + MySQL 8.0
+- **持久层:** MyBatis-Plus 3.5.9 + MySQL 8.0
 - **中间件:**
-    - **Redis:** 用于验证码存储、热门房源详情缓存、聊天消息 Pub/Sub 分布式分发
+    - **Redis Stack (7.4):** 缓存存储 + 向量检索 (RediSearch HNSW)
     - **MinIO:** 分布式对象存储，统一管理房源图片、聊天文件
+- **AI Agent:**
+    - **框架:** LangChain4j 1.0.0 (AiServices + RAG 管道)
+    - **LLM:** MiniMax-M2.7 (OpenAI 兼容 API)
+    - **Embedding:** 阿里 DashScope text-embedding-v4 (1024 维)
+    - **向量检索:** Redis Stack RediSearch (KNN + cosine 距离)
 - **实时通讯:** WebSocket + Redis Pub/Sub 实现跨实例消息推送
 - **安全与验证:**
     - **认证:** JWT (JSON Web Token) 实现无状态登录
@@ -50,6 +57,7 @@ Nacos(8848): 服务发现 + 配置中心
 - **租赁全流程:** 涵盖房源搜索（省市区/价格/支付方式多维过滤）、预约看房提交、租约签订及状态自动流转。
 - **即时通讯(chat-service):** 独立聊天服务，基于 WebSocket 的实时聊天，支持跨实例消息分发（Redis Pub/Sub）、消息已读未读状态、用户搜索（按用户名模糊搜索/手机号精准搜索）、文件与头像上传。
 - **房源与聊天联动:** 房间可关联房东用户，移动端详情页可查看房东信息并一键发起聊天。
+- **AI 智能检索 (agent-service):** 基于 LangChain4j 构建的 RAG 系统，用户输入自然语言（如"西湖区2000元以内朝南带独卫"），通过向量检索 + LLM 匹配最合适的房源。
 - **系统工具:** 实现图片上传至 MinIO 存储桶、基于 Spring Task 的租约到期自动结束。
 
 ## 项目亮点
@@ -62,6 +70,7 @@ Nacos(8848): 服务发现 + 配置中心
 7. **WebSocket 集群实时通讯:** chat-service 独立部署，基于 **WebSocket + Redis Pub/Sub** 实现跨实例消息分发，支持多实例部署下的实时聊天；结合 JWT 实现消息发送者的身份认证。
 8. **API 网关统一入口:** **Spring Cloud Gateway** 作为统一入口，内置 `ForwardAuthFilter` 自动转发 `access-token` 请求头，聚合 **Knife4j** 文档至 `http://localhost:8083/doc.html`。
 9. **房源聊天联动:** 将传统租赁平台的信息孤岛打通，租客可直接在房源详情页发起与房东的即时通讯，降低沟通成本，提升平台粘性。
+10. **AI Agent 智能检索:** 基于 LangChain4j 构建 RAG（检索增强生成）管道，将结构化房源数据转为自然语言文档后嵌入 Redis Stack 向量库，结合 MiniMax LLM 实现自然语言驱动的智能房源推荐，并返回可视化房间卡片。
 
 ## 后续计划
 目前已完成微服务化改造和聊天功能实现。后端部分计划增强下列能力：
@@ -71,9 +80,8 @@ Nacos(8848): 服务发现 + 配置中心
 4. 缓存一致性优化：目前的缓存一致性处理比较原始，计划引入缓存双删与 Canal 监控
 5. 消息队列：引入 RocketMQ 实现异步消息通信
 
-并增添一些时兴的 Agent 开发方面的功能：
-1. 利用 LangChain4j + 向量数据库，实现基于自然语言的房源检索（RAG）
-2. 使 Agent 能够根据对话内容，自动调用项目原有的接口（Tool Calling）
+已实现的 Agent 功能：
+1. ✅ LangChain4j + 向量数据库：基于自然语言的房源检索（RAG），已对接 MiniMax 和阿里 DashScope
 
 ## 快速开始
 > **注意**：本项目采用前后端分离 + 微服务架构。本仓库为后端代码（Java），前端代码请访问 [LeaseGo-Frontend](https://github.com/yitian-chen/LeaseGo-Frontend)。
@@ -106,13 +114,13 @@ Nacos(8848): 服务发现 + 配置中心
 - **方式 B (图形化界面)**: 使用 Navicat、DataGrip 或 IntelliJ IDEA 的 Database 插件，右键点击 lease 数据库，选择"运行 SQL 文件"并选择根目录下的脚本。
 
 ### 4. 启动服务
-**启动顺序**：Nacos → MySQL/Redis/MinIO → web-app → chat-service → gateway
+**启动顺序**：Nacos → MySQL/Redis Stack/MinIO → web-app → chat-service → agent-service → gateway
 
 ```bash
 # 1. 启动 Nacos（首次）
 docker run -d --name nacos -p 8848:8848 -e MODE=standalone nacos/nacos-server:v2.2.3
 
-# 2. 启动 MySQL/Redis/MinIO（如未启动）
+# 2. 启动 MySQL/Redis Stack/MinIO（如未启动）
 docker-compose up -d
 
 # 3. 启动 web-app (端口 8081)
@@ -121,9 +129,15 @@ cd web/web-app && mvn spring-boot:run
 # 4. 启动 chat-service (端口 8082)
 cd chat-service && mvn spring-boot:run
 
-# 5. 启动 gateway (端口 8083)
+# 5. 启动 agent-service (端口 8084)
+cd agent-service && mvn spring-boot:run
+
+# 6. 启动 gateway (端口 8083)
 cd gateway && mvn spring-boot:run
 ```
+
+> **首次启动 agent-service 后**，需调用 `/api/agent/admin/reindex` 触发房源数据向量索引。
+> agent-service 需要设置环境变量：`MINIMAX_API_KEY`（MiniMax API 密钥）、`DASHSCOPE_API_KEY`（阿里 DashScope 密钥）。
 
 ### 5. Docker 部署中间件
 项目提供 `docker-compose.yml.example`，可一键启动 MySQL、Redis、MinIO 等依赖服务：
@@ -153,7 +167,7 @@ docker-compose down
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | MySQL | 3307 | 数据库，默认账号 root |
-| Redis | 6379 | 缓存服务 |
+| Redis Stack | 6379/8001 | 缓存 + 向量检索，8001 为 RedisInsight 管理界面 |
 | MinIO | 9000/9001 | 对象存储，API端口9000，控制台9001 |
 
 **统一 API 文档入口**：http://localhost:8083/doc.html (Knife4j 聚合文档)
@@ -162,4 +176,5 @@ docker-compose down
 |------|------|
 | web-app | http://localhost:8081 (登录、公寓、房间、预约、支付等业务接口) |
 | chat-service | http://localhost:8082 (WebSocket 聊天服务) |
+| agent-service | http://localhost:8084 (AI Agent 智能房源检索) |
 | gateway | http://localhost:8083 (统一入口) |
