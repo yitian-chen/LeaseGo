@@ -38,9 +38,8 @@ public class AgentSearchController {
         List<AgentSearchVo.RoomItemVo> roomItems = roomSearcher.getRoomItems(searchResult.roomIds());
 
         // 2. 将用户查询和搜索结果发给 LLM
-        String context = "用户需求：" + query + "\n\n匹配房源信息：\n"
-                + (searchResult.contextText().isEmpty() ? "无匹配结果" : searchResult.contextText());
-        String aiText = apartmentSearchAgent.search(context, searchResult.contextText());
+        String context = searchResult.contextText().isEmpty() ? "无匹配结果" : searchResult.contextText();
+        String aiText = apartmentSearchAgent.search(query, context);
 
         // 3. 过滤 think 标签
         String cleaned = aiText.replaceAll("(?s)<think>.*?</think>", "").trim();

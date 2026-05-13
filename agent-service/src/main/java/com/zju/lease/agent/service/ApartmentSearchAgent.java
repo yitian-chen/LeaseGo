@@ -1,6 +1,8 @@
 package com.zju.lease.agent.service;
 
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.V;
 
 public interface ApartmentSearchAgent {
 
@@ -13,5 +15,6 @@ public interface ApartmentSearchAgent {
             3. 每次最多推荐 3 个房间
             4. 如果没有匹配的房间，简单告知即可
             5. 不要使用markdown格式，不要使用<think>标签，纯文本回复""")
-    String search(String userMessage, String searchResults);
+    @UserMessage("用户需求：{{query}}\n\n匹配房源信息：\n{{searchResults}}")
+    String search(@V("query") String query, @V("searchResults") String searchResults);
 }
