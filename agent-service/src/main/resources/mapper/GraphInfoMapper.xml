@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zju.lease.agent.mapper.GraphInfoMapper">
+    <select id="selectListByRoomId" resultType="com.zju.lease.model.entity.GraphInfo">
+        select id, name, url, item_type, item_id
+        from graph_info
+        where is_deleted = 0
+          and item_type = 2
+          and item_id = #{roomId}
+        order by id asc
+    </select>
+</mapper>

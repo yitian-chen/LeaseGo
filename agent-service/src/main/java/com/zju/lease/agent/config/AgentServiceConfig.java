@@ -1,7 +1,6 @@
 package com.zju.lease.agent.config;
 
 import com.zju.lease.agent.service.ApartmentSearchAgent;
-import com.zju.lease.agent.tool.RoomSearchTool;
 import dev.langchain4j.community.model.dashscope.QwenEmbeddingModel;
 import dev.langchain4j.community.store.embedding.redis.RedisEmbeddingStore;
 import dev.langchain4j.data.segment.TextSegment;
@@ -34,7 +33,7 @@ public class AgentServiceConfig {
     @Value("${minimax.base-url}")
     private String minimaxBaseUrl;
 
-    @Value("${minimax.model-name:abab6.5s-chat}")
+    @Value("${minimax.model-name:MiniMax-M2.7}")
     private String chatModelName;
 
     @Value("${spring.data.redis.host:localhost}")
@@ -81,12 +80,9 @@ public class AgentServiceConfig {
     }
 
     @Bean
-    public ApartmentSearchAgent apartmentSearchAgent(
-            ChatModel chatModel,
-            RoomSearchTool roomSearchTool) {
+    public ApartmentSearchAgent apartmentSearchAgent(ChatModel chatModel) {
         return AiServices.builder(ApartmentSearchAgent.class)
                 .chatModel(chatModel)
-                .tools(roomSearchTool)
                 .build();
     }
 }
