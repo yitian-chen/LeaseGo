@@ -5,8 +5,8 @@ import com.zju.lease.agent.tool.RoomSearchTool;
 import dev.langchain4j.community.model.dashscope.QwenEmbeddingModel;
 import dev.langchain4j.community.store.embedding.redis.RedisEmbeddingStore;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -28,13 +28,13 @@ public class AgentServiceConfig {
     @Value("${langchain4j.dashscope.embedding-model.model-name:text-embedding-v4}")
     private String embeddingModelName;
 
-    @Value("${deepseek.api-key}")
-    private String deepseekApiKey;
+    @Value("${minimax.api-key}")
+    private String minimaxApiKey;
 
-    @Value("${deepseek.base-url}")
-    private String deepseekBaseUrl;
+    @Value("${minimax.base-url}")
+    private String minimaxBaseUrl;
 
-    @Value("${deepseek.model-name:deepseek-v4-flash}")
+    @Value("${minimax.model-name:abab6.5s-chat}")
     private String chatModelName;
 
     @Value("${spring.data.redis.host:localhost}")
@@ -67,10 +67,10 @@ public class AgentServiceConfig {
 
     @Bean
     public ChatModel chatModel() {
-        log.info("Creating OpenAiChatModel for Deepseek: baseUrl={}, model={}", deepseekBaseUrl, chatModelName);
+        log.info("Creating OpenAiChatModel for MiniMax: baseUrl={}, model={}", minimaxBaseUrl, chatModelName);
         return OpenAiChatModel.builder()
-                .baseUrl(deepseekBaseUrl)
-                .apiKey(deepseekApiKey)
+                .baseUrl(minimaxBaseUrl)
+                .apiKey(minimaxApiKey)
                 .modelName(chatModelName)
                 .temperature(0.3)
                 .maxTokens(2048)

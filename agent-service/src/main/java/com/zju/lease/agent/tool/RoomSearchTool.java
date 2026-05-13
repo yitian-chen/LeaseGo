@@ -39,7 +39,7 @@ public class RoomSearchTool {
             List<EmbeddingMatch<TextSegment>> matches = result.matches();
 
             if (matches.isEmpty()) {
-                return "未找到匹配的房间。建议用户尝试调整搜索条件，如扩大预算范围、更换区域或减少配套设施要求。";
+                return "未找到匹配的房间。";
             }
 
             return matches.stream()
