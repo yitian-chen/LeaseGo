@@ -46,7 +46,7 @@ minio:
   endpoint: http://localhost:9000
   access-key: # MinIO Access Key
   secret-key: # MinIO Secret Key
-  bucket-name: lease-app
+  bucket-name: lease
 
 aliyun:
   sms:
