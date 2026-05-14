@@ -8,6 +8,9 @@ import com.zju.lease.model.entity.LeaseAgreement;
 import com.zju.lease.model.enums.LeaseStatus;
 import com.zju.lease.web.admin.mapper.UserInfoMapper;
 import com.zju.lease.web.admin.service.LeaseAgreementService;
+import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,6 +22,7 @@ import java.util.Date;
 import java.util.List;
 
 @Component
+@Slf4j
 public class ScheduleTasks {
 
     @Autowired
@@ -27,8 +31,18 @@ public class ScheduleTasks {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
+    @Autowired
+    private RedissonClient redissonClient;
+
     @Scheduled(cron = "0 0 0 * * *")
     public void checkLeaseStatus() {
+        // 分布式锁：防止多实例重复执行
+        RLock lock = redissonClient.getLock("lock:task:checkLeaseStatus");
+        if (!lock.tryLock()) {
+            log.info("checkLeaseStatus skipped: lock held by another instance");
+            return;
+        }
+        try {
         // 查询即将过期的租约
         List<LeaseAgreement> expiringLeases = service.list(new LambdaQueryWrapper<LeaseAgreement>()
                 .le(LeaseAgreement::getLeaseEndDate, new Date())
@@ -51,6 +65,11 @@ public class ScheduleTasks {
                             lease.getName(),
                             lease.getLeaseEndDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()
                     ));
+        }
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
     }
 }

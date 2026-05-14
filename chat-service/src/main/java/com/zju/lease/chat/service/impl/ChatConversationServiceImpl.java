@@ -9,6 +9,9 @@ import com.zju.lease.chat.mapper.ChatMessageMapper;
 import com.zju.lease.chat.mapper.UserInfoMapper;
 import com.zju.lease.chat.service.ChatConversationService;
 import com.zju.lease.chat.vo.chat.ChatConversationVo;
+import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Slf4j
 public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMapper, ChatConversation>
     implements ChatConversationService {
 
@@ -27,6 +31,9 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
 
     @Autowired
     private UserInfoMapper userInfoMapper;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     @Override
     public List<ChatConversation> listConversationsByUserId(Long userId) {
@@ -40,14 +47,41 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
 
     @Override
     public ChatConversation getOrCreateConversation(Long userId1, Long userId2) {
+        // 先查缓存（无锁快速路径）
         ChatConversation conversation = chatConversationMapper.selectByTwoUsers(userId1, userId2);
-        if (conversation == null) {
-            conversation = new ChatConversation();
-            conversation.setUserId1(Math.min(userId1, userId2));
-            conversation.setUserId2(Math.max(userId1, userId2));
-            chatConversationMapper.insert(conversation);
+        if (conversation != null) {
+            return conversation;
         }
-        return conversation;
+
+        // 分布式锁避免 TOCTOU 竞态创建重复会话
+        long minId = Math.min(userId1, userId2);
+        long maxId = Math.max(userId1, userId2);
+        String lockKey = "lock:conv:" + minId + "-" + maxId;
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            if (lock.tryLock(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                // 双重检查
+                conversation = chatConversationMapper.selectByTwoUsers(userId1, userId2);
+                if (conversation != null) {
+                    return conversation;
+                }
+                conversation = new ChatConversation();
+                conversation.setUserId1(minId);
+                conversation.setUserId2(maxId);
+                chatConversationMapper.insert(conversation);
+                return conversation;
+            } else {
+                log.warn("Failed to acquire lock for conversation {}-{}", minId, maxId);
+                return chatConversationMapper.selectByTwoUsers(userId1, userId2);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     @Override

@@ -9,10 +9,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zju.lease.web.app.vo.agreement.AgreementDetailVo;
 import com.zju.lease.web.app.vo.agreement.AgreementItemVo;
 import com.zju.lease.web.app.vo.graph.GraphVo;
-import org.checkerframework.checker.units.qual.A;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.TimeUnit;
 
 import java.util.List;
 
@@ -42,6 +45,31 @@ public class LeaseAgreementServiceImpl extends ServiceImpl<LeaseAgreementMapper,
 
     @Autowired
     private LeaseTermMapper leaseTermMapper;
+
+    @Autowired
+    private RedissonClient redissonClient;
+
+    @Override
+    public boolean saveOrUpdate(LeaseAgreement entity) {
+        if (entity.getRoomId() == null) {
+            return super.saveOrUpdate(entity);
+        }
+        String lockKey = "lock:lease:room:" + entity.getRoomId();
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            if (lock.tryLock(5, TimeUnit.SECONDS)) {
+                return super.saveOrUpdate(entity);
+            }
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
 
     @Override
     public List<AgreementItemVo> listItemByPhone(String phone) {
