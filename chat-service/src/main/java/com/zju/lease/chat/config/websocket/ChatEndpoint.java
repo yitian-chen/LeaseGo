@@ -2,6 +2,7 @@ package com.zju.lease.chat.config.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.zju.lease.common.rabbit.RabbitMQConfig;
 import com.zju.lease.model.entity.Message;
 import com.zju.lease.model.entity.RedisChatMessage;
 import com.zju.lease.model.entity.ChatResponseMessage;
@@ -15,6 +16,7 @@ import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,6 +39,7 @@ public class ChatEndpoint {
     public static final Map<Long, Session> onlineUsers = new ConcurrentHashMap<>();
     private static RedisTemplate<String, Object> redisTemplate;
     private static StringRedisTemplate stringRedisTemplate;
+    private static RabbitTemplate rabbitTemplate;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
@@ -47,6 +50,11 @@ public class ChatEndpoint {
     @Autowired
     public void setStringRedisTemplate(StringRedisTemplate stringRedisTemplate) {
         ChatEndpoint.stringRedisTemplate = stringRedisTemplate;
+    }
+
+    @Autowired
+    public void setRabbitTemplate(RabbitTemplate rabbitTemplate) {
+        ChatEndpoint.rabbitTemplate = rabbitTemplate;
     }
 
     private String currentUserName;
@@ -84,6 +92,13 @@ public class ChatEndpoint {
             redisMsg.setToId(msg.getToId());
             redisMsg.setMessage(msg.getMessage());
             redisTemplate.convertAndSend("chat_msg_channel", redisMsg);
+
+            // RabbitMQ 持久化
+            Map<String, Object> persistMsg = new HashMap<>();
+            persistMsg.put("fromId", this.currentUserId);
+            persistMsg.put("toId", msg.getToId());
+            persistMsg.put("message", msg.getMessage());
+            rabbitTemplate.convertAndSend(RabbitMQConfig.CHAT_EXCHANGE, RabbitMQConfig.CHAT_PERSIST_KEY, persistMsg);
 
             ChatResponseMessage echoMsg = new ChatResponseMessage(false, this.currentUserId, this.currentUserName, msg.getMessage());
             session.getBasicRemote().sendText(objectMapper.writeValueAsString(echoMsg));

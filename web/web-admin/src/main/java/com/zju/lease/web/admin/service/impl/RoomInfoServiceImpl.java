@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.common.constant.RedisConstant;
+import com.zju.lease.common.rabbit.RoomMessage;
+import com.zju.lease.common.rabbit.RabbitMQConfig;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.BaseStatus;
 import com.zju.lease.model.enums.ItemType;
@@ -18,6 +20,7 @@ import com.zju.lease.web.admin.vo.room.RoomItemVo;
 import com.zju.lease.web.admin.vo.room.RoomQueryVo;
 import com.zju.lease.web.admin.vo.room.RoomSubmitVo;
 import org.springframework.beans.BeanUtils;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -85,6 +88,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
 
     @Autowired
     private UserInfoService userInfoService;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     @Qualifier("myRedisTemplate")
@@ -219,6 +225,12 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
 
             roomLeaseTermService.saveBatch(roomLeaseTermList);
         }
+
+        // 通知 agent-service 重新索引
+        if (roomSubmitVo.getId() != null) {
+            rabbitTemplate.convertAndSend(RabbitMQConfig.ROOM_EXCHANGE, RabbitMQConfig.ROOM_REINDEX_KEY,
+                    new RoomMessage(roomSubmitVo.getId(), "UPDATE"));
+        }
     }
 
     @Override
@@ -310,6 +322,10 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         // 删除 redis 中的数据缓存
         String key = RedisConstant.APP_ROOM_PREFIX + id;
         redisTemplate.delete(key);
+
+        // 通知 agent-service 移除索引
+        rabbitTemplate.convertAndSend(RabbitMQConfig.ROOM_EXCHANGE, RabbitMQConfig.ROOM_REINDEX_KEY,
+                new RoomMessage(id, "DELETE"));
     }
 
     @Override

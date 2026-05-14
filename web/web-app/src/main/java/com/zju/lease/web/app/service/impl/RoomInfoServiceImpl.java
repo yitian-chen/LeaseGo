@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.common.constant.RedisConstant;
 import com.zju.lease.common.login.LoginUser;
+import com.zju.lease.common.rabbit.RabbitMQConfig;
 import com.zju.lease.common.login.LoginUserHolder;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.BaseStatus;
@@ -24,6 +25,7 @@ import com.zju.lease.web.app.vo.room.RoomItemVo;
 import com.zju.lease.web.app.vo.room.RoomQueryVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -77,6 +79,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     @Autowired
     @Qualifier("myRedisTemplate")
     private RedisTemplate redisTemplate;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Override
     public IPage<RoomItemVo> pageItem(Page<RoomItemVo> page, RoomQueryVo queryVo) {
@@ -140,8 +145,11 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             redisTemplate.opsForValue().set(key, roomDetailVo);
         }
 
-        // 保存浏览历史
-        browsingHistoryService.saveHistory(LoginUserHolder.getLoginUser().getUserId(), id);
+        // 保存浏览历史（RabbitMQ 异步）
+        java.util.Map<String, Object> historyMsg = new java.util.HashMap<>();
+        historyMsg.put("userId", LoginUserHolder.getLoginUser().getUserId());
+        historyMsg.put("roomId", id);
+        rabbitTemplate.convertAndSend(RabbitMQConfig.HISTORY_EXCHANGE, RabbitMQConfig.HISTORY_RECORD_KEY, historyMsg);
 
         return roomDetailVo;
     }
