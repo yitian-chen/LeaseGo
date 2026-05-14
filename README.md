@@ -19,6 +19,7 @@ Client → Gateway(8083) → web-app(8081)
 
 Nacos(8848): 服务发现 + 配置中心
 Redis Stack(6379): 缓存存储 + 向量检索
+RabbitMQ(5672/15672): 异步消息队列 (房间重索引、聊天持久化、浏览历史、租约通知)
 ```
 
 **模块划分：**
@@ -36,6 +37,7 @@ Redis Stack(6379): 缓存存储 + 向量检索
 - **持久层:** MyBatis-Plus 3.5.9 + MySQL 8.0
 - **中间件:**
     - **Redis Stack (7.4):** 缓存存储 + 向量检索 (RediSearch HNSW)
+    - **RabbitMQ (4.0):** 异步消息队列（持久化投递、重试机制、死信处理）
     - **MinIO:** 分布式对象存储，统一管理房源图片、聊天文件
 - **AI Agent:**
     - **框架:** LangChain4j 1.0.0 (AiServices + RAG 管道)
@@ -58,11 +60,16 @@ Redis Stack(6379): 缓存存储 + 向量检索
 - **即时通讯(chat-service):** 独立聊天服务，基于 WebSocket 的实时聊天，支持跨实例消息分发（Redis Pub/Sub）、消息已读未读状态、用户搜索（按用户名模糊搜索/手机号精准搜索）、文件与头像上传。
 - **房源与聊天联动:** 房间可关联房东用户，移动端详情页可查看房东信息并一键发起聊天。
 - **AI 智能检索 (agent-service):** 基于 LangChain4j 构建的 RAG 系统，用户输入自然语言（如"西湖区2000元以内朝南带独卫"），通过向量检索 + LLM 匹配最合适的房源。
+- **异步消息队列:** RabbitMQ 驱动四项异步任务：
+  - 房间数据变更 → Agent 向量索引自动更新
+  - 聊天消息可靠持久化（同时保留 Redis Pub/Sub 实时分发）
+  - 浏览历史异步记录
+  - 租约到期通知
 - **系统工具:** 实现图片上传至 MinIO 存储桶、基于 Spring Task 的租约到期自动结束。
 
 ## 项目亮点
 1. **高性能缓存架构:** 在移动端房源详情接口引入 **Redis 缓存策略**，通过"先查缓存，穿透查库"的逻辑减少数据库 IO 压力，并配合管理端修改时的失效机制确保数据一致性。
-2. **异步处理:** 使用 Spring **`@Async` 异步线程池**处理用户房源浏览历史记录，避免繁重的插入操作阻塞主线程请求，提升系统响应速度。
+2. **异步消息队列:** 集成 **RabbitMQ** 处理房间变更→Agent 自动重索引、聊天消息持久化、浏览历史记录、租约到期通知等异步任务，支持重试机制和手动确认，确保消息不丢失。
 3. **健壮的权限体系:** 封装 **`ThreadLocal` 上下文持有者 (`LoginUserHolder`)**，配合自定义拦截器实现用户信息的无感传递，有效隔离各线程间的用户信息。
 4. **统一工程化规范:** 建立**全局异常拦截器 (`GlobalExceptionHandler`)**，统一捕获业务异常并返回标准 Result 格式。
 5. **类型安全与转换:** 针对业务中大量的状态枚举，自定义 **`StringToBaseEnumConverterFactory`**，实现 Web 层请求参数到数据库枚举类的自动映射，增强了代码的可维护性。
@@ -73,15 +80,12 @@ Redis Stack(6379): 缓存存储 + 向量检索
 10. **AI Agent 智能检索:** 基于 LangChain4j 构建 RAG（检索增强生成）管道，将结构化房源数据转为自然语言文档后嵌入 Redis Stack 向量库，结合 MiniMax LLM 实现自然语言驱动的智能房源推荐，并返回可视化房间卡片。
 
 ## 后续计划
-目前已完成微服务化改造和聊天功能实现。后端部分计划增强下列能力：
 1. ✅ 微服务化：引入 Spring Cloud Alibaba (Nacos/OpenFeign/Sentinel) 将聊天服务、用户服务拆分为独立微服务
 2. ✅ WebSocket 集群：基于 Redis Pub/Sub 实现跨实例消息分发
-3. 分布式锁：处理多并发情况下的超卖问题（Redisson）
-4. 缓存一致性优化：目前的缓存一致性处理比较原始，计划引入缓存双删与 Canal 监控
-5. 消息队列：引入 RocketMQ 实现异步消息通信
-
-已实现的 Agent 功能：
-1. ✅ LangChain4j + 向量数据库：基于自然语言的房源检索（RAG），已对接 MiniMax 和阿里 DashScope
+3. ✅ 消息队列：引入 RabbitMQ 实现异步消息通信（房间重索引、聊天持久化、浏览历史、租约通知）
+4. ✅ AI Agent 智能检索：基于 LangChain4j + 向量数据库的 RAG（接入 MiniMax + 阿里 DashScope）
+5. 分布式锁：处理多并发情况下的超卖问题（Redisson）
+6. 缓存一致性优化：目前的缓存一致性处理比较原始，计划引入缓存双删与 Canal 监控
 
 ## 快速开始
 > **注意**：本项目采用前后端分离 + 微服务架构。本仓库为后端代码（Java），前端代码请访问 [LeaseGo-Frontend](https://github.com/yitian-chen/LeaseGo-Frontend)。
@@ -168,6 +172,7 @@ docker-compose down
 |------|------|------|
 | MySQL | 3307 | 数据库，默认账号 root |
 | Redis Stack | 6379/8001 | 缓存 + 向量检索，8001 为 RedisInsight 管理界面 |
+| RabbitMQ | 5672/15672 | 异步消息队列，15672 为管理控制台 (guest/guest) |
 | MinIO | 9000/9001 | 对象存储，API端口9000，控制台9001 |
 
 **统一 API 文档入口**：http://localhost:8083/doc.html (Knife4j 聚合文档)
