@@ -1,5 +1,8 @@
 package com.zju.lease.web.app.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zju.lease.common.exception.LeaseException;
+import com.zju.lease.common.result.ResultCodeEnum;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.ItemType;
 import com.zju.lease.model.enums.LeaseStatus;
@@ -58,6 +61,23 @@ public class LeaseAgreementServiceImpl extends ServiceImpl<LeaseAgreementMapper,
         RLock lock = redissonClient.getLock(lockKey);
         try {
             if (lock.tryLock(5, TimeUnit.SECONDS)) {
+                // 业务校验：检查时间段是否与已有租约冲突
+                if (entity.getId() == null || isRoomLeaseChanged(entity)) {
+                    if (entity.getLeaseStartDate() == null || entity.getLeaseEndDate() == null) {
+                        throw new LeaseException(ResultCodeEnum.PARAM_ERROR);
+                    }
+                    List<LeaseAgreement> conflictLeases = leaseAgreementMapper.selectList(
+                            new LambdaQueryWrapper<LeaseAgreement>()
+                                    .eq(LeaseAgreement::getRoomId, entity.getRoomId())
+                                    .eq(LeaseAgreement::getIsDeleted, 0)
+                                    .notIn(LeaseAgreement::getStatus, LeaseStatus.EXPIRED, LeaseStatus.CANCELED, LeaseStatus.WITHDRAWN)
+                                    .le(LeaseAgreement::getLeaseStartDate, entity.getLeaseEndDate())
+                                    .ge(LeaseAgreement::getLeaseEndDate, entity.getLeaseStartDate())
+                    );
+                    if (!conflictLeases.isEmpty()) {
+                        throw new LeaseException(ResultCodeEnum.ROOM_LEASE_ALREADY_EXISTS);
+                    }
+                }
                 return super.saveOrUpdate(entity);
             }
             return false;
@@ -69,6 +89,11 @@ public class LeaseAgreementServiceImpl extends ServiceImpl<LeaseAgreementMapper,
                 lock.unlock();
             }
         }
+    }
+
+    private boolean isRoomLeaseChanged(LeaseAgreement entity) {
+        LeaseAgreement old = leaseAgreementMapper.selectById(entity.getId());
+        return old == null || !old.getRoomId().equals(entity.getRoomId());
     }
 
     @Override

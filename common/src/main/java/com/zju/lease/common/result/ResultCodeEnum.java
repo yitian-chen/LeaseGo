@@ -16,6 +16,7 @@ public enum ResultCodeEnum {
     ILLEGAL_REQUEST(205, "非法请求"),
     REPEAT_SUBMIT(206, "重复提交"),
     DELETE_ERROR(207, "请先删除子集"),
+    ROOM_LEASE_ALREADY_EXISTS(208, "该房间已有有效租约，无法重复签约"),
 
     ADMIN_ACCOUNT_EXIST_ERROR(301, "账号已存在"),
     ADMIN_CAPTCHA_CODE_ERROR(302, "验证码错误"),
