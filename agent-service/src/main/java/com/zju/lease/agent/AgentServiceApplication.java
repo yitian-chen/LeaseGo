@@ -17,10 +17,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan("com.zju.lease.agent.mapper")
 @EnableAsync
 @EnableScheduling
-@Import(com.zju.lease.common.redis.RedisConfiguration.class)
+@Import({com.zju.lease.common.redis.RedisConfiguration.class, com.zju.lease.common.rabbit.RabbitMQConfig.class})
 @ComponentScan(basePackages = {
         "com.zju.lease.agent",
         "com.zju.lease.common.redis",
+        "com.zju.lease.common.rabbit",
         "com.zju.lease.common.interceptor",
         "com.zju.lease.common.mybatisplus"
 }, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
