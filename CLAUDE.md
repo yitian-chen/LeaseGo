@@ -22,12 +22,13 @@ lease/
 - Redis Stack（缓存 + 向量检索 RediSearch）
 - RabbitMQ 4.0（异步消息队列）
 - MinIO（对象存储）
+- **Redisson 3.50（分布式锁：租约超卖、会话去重、定时任务防重复）**
 - LangChain4j + MiniMax + 阿里 DashScope（AI Agent）
 - Knife4j 4.5.0（API 文档）
 
 ## 模块职责
 
-- **common**: 所有其他模块依赖它。包含全局异常处理、统一返回 Result、Redis 序列化、MinIO 客户端、JWT 工具、RabbitMQ 交换机/队列/绑定声明、AuthenticationInterceptor
+- **common**: 所有其他模块依赖它。包含全局异常处理、统一返回 Result、Redis 序列化、MinIO 客户端、JWT 工具、RabbitMQ 交换机/队列/绑定声明、Redisson 自动配置、AuthenticationInterceptor
 - **model**: 纯数据模型，不包含业务逻辑。被所有模块依赖
 - **web-admin**: 管理员端 API。对接管理后台前端，使用 MyBatis-Plus ServiceImpl
 - **web-app**: 用户端 API。对接 H5 移动端前端
@@ -68,6 +69,13 @@ com.zju.lease.{module}/
 | lease.lease | lease.lease.expired | lease.expired | 租约到期通知 |
 
 所有监听器使用 `ackMode = "MANUAL"`，处理成功后调用 `channel.basicAck`，异常时 `basicNack(requeue=true)`。
+
+### Redisson 分布式锁
+| 锁 Key | 场景 | 说明 |
+|--------|------|------|
+| `lock:lease:room:{roomId}` | 租约签约 | 时间段重叠检测，不冲突允许多份租约 |
+| `lock:conv:{minId}-{maxId}` | 聊天会话 | TOCTOU 双重检查防重复 |
+| `lock:task:checkLeaseStatus` | 定时任务 | tryLock(0) 抢不到即跳过 |
 
 ### 启动顺序
 Nacos → MySQL/Redis Stack/RabbitMQ/MinIO → web-app → chat-service → agent-service → gateway
