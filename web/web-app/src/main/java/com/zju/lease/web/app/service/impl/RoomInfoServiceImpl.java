@@ -142,7 +142,8 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             }
 
             // 将数据库中查询出的信息缓存到 redis template 中
-            redisTemplate.opsForValue().set(key, roomDetailVo);
+            redisTemplate.opsForValue().set(key, roomDetailVo,
+                    RedisConstant.APP_ROOM_CACHE_TTL_SEC, java.util.concurrent.TimeUnit.SECONDS);
         }
 
         // 保存浏览历史（RabbitMQ 异步）

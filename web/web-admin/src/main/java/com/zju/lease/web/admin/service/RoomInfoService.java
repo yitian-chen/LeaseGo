@@ -8,6 +8,7 @@ import com.zju.lease.web.admin.vo.room.LandlordSelectVo;
 import com.zju.lease.web.admin.vo.room.RoomDetailVo;
 import com.zju.lease.web.admin.vo.room.RoomItemVo;
 import com.zju.lease.web.admin.vo.room.RoomQueryVo;
+import com.zju.lease.model.enums.ReleaseStatus;
 import com.zju.lease.web.admin.vo.room.RoomSubmitVo;
 
 import java.util.List;
@@ -30,4 +31,6 @@ public interface RoomInfoService extends IService<RoomInfo> {
     List<LandlordSelectVo> listLandlords();
 
     LandlordSelectVo getLandlordByRoomId(Long roomId);
+
+    void updateReleaseStatusById(Long id, ReleaseStatus status);
 }

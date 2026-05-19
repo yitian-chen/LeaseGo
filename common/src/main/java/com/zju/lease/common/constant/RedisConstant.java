@@ -9,4 +9,5 @@ public class RedisConstant {
     public static final String APP_ROOM_PREFIX = "app:room:";
     public static final Integer APP_LOGIN_CAPTCHA_TTL_SEC = 300;
     public static final String APP_LOGIN_CAPTCHA_PREFIX = "app:captcha:login:";
+    public static final Integer APP_ROOM_CACHE_TTL_SEC = 3600;
 }

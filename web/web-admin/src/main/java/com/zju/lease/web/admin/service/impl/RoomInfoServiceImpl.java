@@ -1,6 +1,7 @@
 package com.zju.lease.web.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zju.lease.common.constant.RedisConstant;
@@ -9,6 +10,7 @@ import com.zju.lease.common.rabbit.RabbitMQConfig;
 import com.zju.lease.model.entity.*;
 import com.zju.lease.model.enums.BaseStatus;
 import com.zju.lease.model.enums.ItemType;
+import com.zju.lease.model.enums.ReleaseStatus;
 import com.zju.lease.web.admin.mapper.*;
 import com.zju.lease.web.admin.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -19,18 +21,23 @@ import com.zju.lease.web.admin.vo.room.RoomDetailVo;
 import com.zju.lease.web.admin.vo.room.RoomItemVo;
 import com.zju.lease.web.admin.vo.room.RoomQueryVo;
 import com.zju.lease.web.admin.vo.room.RoomSubmitVo;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author liubo
@@ -96,140 +103,67 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     @Qualifier("myRedisTemplate")
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
+    private RedissonClient redissonClient;
+
     @Override
+    @Transactional
     public void saveOrUpdateRoom(RoomSubmitVo roomSubmitVo) {
         boolean isUpdating = roomSubmitVo.getId() != null;
-        super.saveOrUpdate(roomSubmitVo);
+        Long roomId = roomSubmitVo.getId();
 
-        // 如果是更新，就要先删除所有的参数
+        // 更新操作需要分布式锁防止并发
+        RLock lock = null;
         if (isUpdating) {
-            // 删除图片列表
-            LambdaQueryWrapper<GraphInfo> graphQueryWrapper = new LambdaQueryWrapper<>();
-            graphQueryWrapper.eq(GraphInfo::getItemType, ItemType.ROOM);
-            graphQueryWrapper.eq(GraphInfo::getItemId, roomSubmitVo.getId());
-            graphInfoService.remove(graphQueryWrapper);
-
-            // 删除配套列表
-            LambdaQueryWrapper<RoomFacility> facilityQueryWrapper = new LambdaQueryWrapper<>();
-            facilityQueryWrapper.eq(RoomFacility::getRoomId, roomSubmitVo.getId());
-            roomFacilityService.remove(facilityQueryWrapper);
-
-            // 删除标签列表
-            LambdaQueryWrapper<RoomLabel> labelQueryWrapper = new LambdaQueryWrapper<>();
-            labelQueryWrapper.eq(RoomLabel::getRoomId, roomSubmitVo.getId());
-            roomLabelService.remove(labelQueryWrapper);
-
-            // 删除支付方式列表
-            LambdaQueryWrapper<RoomPaymentType> paymentQueryWrapper = new LambdaQueryWrapper<>();
-            paymentQueryWrapper.eq(RoomPaymentType::getRoomId, roomSubmitVo.getId());
-            roomPaymentTypeService.remove(paymentQueryWrapper);
-
-            // 删除属性值关系列表
-            LambdaQueryWrapper<RoomAttrValue> attrValueQueryWrapper = new LambdaQueryWrapper<>();
-            attrValueQueryWrapper.eq(RoomAttrValue::getRoomId, roomSubmitVo.getId());
-            roomAttrValueService.remove(attrValueQueryWrapper);
-
-            // 删除可选租期列表
-            LambdaQueryWrapper<RoomLeaseTerm> leaseTermQueryWrapper = new LambdaQueryWrapper<>();
-            leaseTermQueryWrapper.eq(RoomLeaseTerm::getRoomId, roomSubmitVo.getId());
-            roomLeaseTermService.remove(leaseTermQueryWrapper);
-
-            // 删除 redis 中的数据缓存
-            String key = RedisConstant.APP_ROOM_PREFIX + roomSubmitVo.getId();
-            redisTemplate.delete(key);
+            lock = acquireLock(roomId);
         }
 
-        // 插入图片列表
-        List<GraphVo> graphVoList = roomSubmitVo.getGraphVoList();
-        if (!CollectionUtils.isEmpty(graphVoList)) {
-            ArrayList<GraphInfo> graphInfoList = new ArrayList<>();
-            for (GraphVo graphVo : graphVoList) {
-                GraphInfo graphInfo = new GraphInfo();
-                graphInfo.setItemType(ItemType.ROOM);
-                graphInfo.setItemId(roomSubmitVo.getId());
-                graphInfo.setName(graphVo.getName());
-                graphInfo.setUrl(graphVo.getUrl());
-                graphInfoList.add(graphInfo);
+        try {
+            // 第一次缓存删除（在 DB 写之前）
+            if (isUpdating) {
+                String key = RedisConstant.APP_ROOM_PREFIX + roomId;
+                redisTemplate.delete(key);
             }
 
-            graphInfoService.saveBatch(graphInfoList);
-        }
+            // 核心 DB 写入
+            super.saveOrUpdate(roomSubmitVo);
 
-        // 插入配套列表
-        List<Long> facilityInfoList = roomSubmitVo.getFacilityInfoIds();
-        if (!CollectionUtils.isEmpty(facilityInfoList)) {
-            ArrayList<RoomFacility> facilityList = new ArrayList<>();
-            for (Long facilityId : facilityInfoList) {
-                RoomFacility roomFacility = new RoomFacility();
-                roomFacility.setFacilityId(facilityId);
-                roomFacility.setRoomId(roomSubmitVo.getId());
-                facilityList.add(roomFacility);
+            // 如果是更新，先删除所有旧关联数据
+            if (isUpdating) {
+                deleteOldAssociations(roomId);
             }
 
-            roomFacilityService.saveBatch(facilityList);
-        }
+            // 插入新关联数据
+            insertGraphList(roomSubmitVo);
+            insertFacilityList(roomSubmitVo);
+            insertLabelList(roomSubmitVo);
+            insertAttrValueList(roomSubmitVo);
+            insertPaymentTypeList(roomSubmitVo);
+            insertLeaseTermList(roomSubmitVo);
 
-        // 插入标签列表
-        List<Long> labelInfoList = roomSubmitVo.getLabelInfoIds();
-        if (!CollectionUtils.isEmpty(labelInfoList)) {
-            List<RoomLabel> roomLabelList = new ArrayList<>();
-            for (Long labelId : labelInfoList) {
-                RoomLabel roomLabel = new RoomLabel();
-                roomLabel.setRoomId(roomSubmitVo.getId());
-                roomLabel.setLabelId(labelId);
-                roomLabelList.add(roomLabel);
+            // 注册事务提交后回调：延时双删 + 通知 agent 重索引
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    Long committedRoomId = roomSubmitVo.getId();
+                    if (committedRoomId != null) {
+                        // 延时第二次缓存删除（TTL+DLX，1 秒后执行）
+                        rabbitTemplate.convertAndSend(
+                                RabbitMQConfig.ROOM_EXCHANGE,
+                                RabbitMQConfig.CACHE_DELETE_DELAY_KEY,
+                                committedRoomId);
+                        // 通知 agent-service 重新索引
+                        rabbitTemplate.convertAndSend(
+                                RabbitMQConfig.ROOM_EXCHANGE,
+                                RabbitMQConfig.ROOM_REINDEX_KEY,
+                                new RoomMessage(committedRoomId, "UPDATE"));
+                    }
+                }
+            });
+        } finally {
+            if (lock != null && lock.isHeldByCurrentThread()) {
+                lock.unlock();
             }
-
-            roomLabelService.saveBatch(roomLabelList);
-        }
-
-
-        // 插入属性列表
-        List<Long> attrValueVoList = roomSubmitVo.getAttrValueIds();
-        if (!CollectionUtils.isEmpty(attrValueVoList)) {
-            ArrayList<RoomAttrValue> roomAttrValueList = new ArrayList<>();
-            for (Long attrValueId : attrValueVoList) {
-                RoomAttrValue roomAttrValue = new RoomAttrValue();
-                roomAttrValue.setRoomId(roomSubmitVo.getId());
-                roomAttrValue.setAttrValueId(attrValueId);
-                roomAttrValueList.add(roomAttrValue);
-            }
-
-            roomAttrValueService.saveBatch(roomAttrValueList);
-        }
-
-        // 插入支付方式列表
-        List<Long> paymentTypeList = roomSubmitVo.getPaymentTypeIds();
-        if (!CollectionUtils.isEmpty(paymentTypeList)) {
-            ArrayList<RoomPaymentType> roomPaymentTypeList = new ArrayList<>();
-            for (Long paymentTypeId : paymentTypeList) {
-                RoomPaymentType roomPaymentType = new RoomPaymentType();
-                roomPaymentType.setRoomId(roomSubmitVo.getId());
-                roomPaymentType.setPaymentTypeId(paymentTypeId);
-                roomPaymentTypeList.add(roomPaymentType);
-            }
-
-            roomPaymentTypeService.saveBatch(roomPaymentTypeList);
-        }
-
-        // 插入可选租期列表
-        List<Long> leaseTermList = roomSubmitVo.getLeaseTermIds();
-        if (!CollectionUtils.isEmpty(leaseTermList)) {
-            ArrayList<RoomLeaseTerm> roomLeaseTermList = new ArrayList<>();
-            for (Long leaseTermId : leaseTermList) {
-                RoomLeaseTerm roomLeaseTerm = new RoomLeaseTerm();
-                roomLeaseTerm.setRoomId(roomSubmitVo.getId());
-                roomLeaseTerm.setLeaseTermId(leaseTermId);
-                roomLeaseTermList.add(roomLeaseTerm);
-            }
-
-            roomLeaseTermService.saveBatch(roomLeaseTermList);
-        }
-
-        // 通知 agent-service 重新索引
-        if (roomSubmitVo.getId() != null) {
-            rabbitTemplate.convertAndSend(RabbitMQConfig.ROOM_EXCHANGE, RabbitMQConfig.ROOM_REINDEX_KEY,
-                    new RoomMessage(roomSubmitVo.getId(), "UPDATE"));
         }
     }
 
@@ -284,48 +218,81 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     }
 
     @Override
+    @Transactional
     public void removeRoomById(Long id) {
-        // 删除房间
-        super.removeById(id);
+        RLock lock = acquireLock(id);
 
-        // 删除图片列表
-        LambdaQueryWrapper<GraphInfo> graphQueryWrapper = new LambdaQueryWrapper<>();
-        graphQueryWrapper.eq(GraphInfo::getItemType, ItemType.ROOM);
-        graphQueryWrapper.eq(GraphInfo::getId, id);
-        graphInfoService.remove(graphQueryWrapper);
+        try {
+            // 第一次缓存删除
+            String key = RedisConstant.APP_ROOM_PREFIX + id;
+            redisTemplate.delete(key);
 
-        // 删除配套列表
-        LambdaQueryWrapper<RoomFacility> facilityQueryWrapper = new LambdaQueryWrapper<>();
-        facilityQueryWrapper.eq(RoomFacility::getRoomId, id);
-        roomFacilityService.remove(facilityQueryWrapper);
+            // 删除房间主记录
+            super.removeById(id);
 
-        // 删除标签列表
-        LambdaQueryWrapper<RoomLabel> labelQueryWrapper = new LambdaQueryWrapper<>();
-        labelQueryWrapper.eq(RoomLabel::getRoomId, id);
-        roomLabelService.remove(labelQueryWrapper);
+            // 删除所有关联数据
+            deleteOldAssociations(id);
 
-        // 删除支付方式列表
-        LambdaQueryWrapper<RoomPaymentType> paymentQueryWrapper = new LambdaQueryWrapper<>();
-        paymentQueryWrapper.eq(RoomPaymentType::getRoomId, id);
-        roomPaymentTypeService.remove(paymentQueryWrapper);
+            // 注册事务提交后回调
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // 延时第二次缓存删除
+                    rabbitTemplate.convertAndSend(
+                            RabbitMQConfig.ROOM_EXCHANGE,
+                            RabbitMQConfig.CACHE_DELETE_DELAY_KEY,
+                            id);
+                    // 通知 agent-service 移除索引
+                    rabbitTemplate.convertAndSend(
+                            RabbitMQConfig.ROOM_EXCHANGE,
+                            RabbitMQConfig.ROOM_REINDEX_KEY,
+                            new RoomMessage(id, "DELETE"));
+                }
+            });
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
 
-        // 删除属性值关系列表
-        LambdaQueryWrapper<RoomAttrValue> attrValueQueryWrapper = new LambdaQueryWrapper<>();
-        attrValueQueryWrapper.eq(RoomAttrValue::getRoomId, id);
-        roomAttrValueService.remove(attrValueQueryWrapper);
+    @Override
+    @Transactional
+    public void updateReleaseStatusById(Long id, ReleaseStatus status) {
+        RLock lock = acquireLock(id);
 
-        // 删除可选租期列表
-        LambdaQueryWrapper<RoomLeaseTerm> leaseTermQueryWrapper = new LambdaQueryWrapper<>();
-        leaseTermQueryWrapper.eq(RoomLeaseTerm::getRoomId, id);
-        roomLeaseTermService.remove(leaseTermQueryWrapper);
+        try {
+            // 第一次缓存删除
+            String key = RedisConstant.APP_ROOM_PREFIX + id;
+            redisTemplate.delete(key);
 
-        // 删除 redis 中的数据缓存
-        String key = RedisConstant.APP_ROOM_PREFIX + id;
-        redisTemplate.delete(key);
+            // 更新发布状态
+            LambdaUpdateWrapper<RoomInfo> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(RoomInfo::getId, id);
+            updateWrapper.set(RoomInfo::getIsRelease, status);
+            super.update(updateWrapper);
 
-        // 通知 agent-service 移除索引
-        rabbitTemplate.convertAndSend(RabbitMQConfig.ROOM_EXCHANGE, RabbitMQConfig.ROOM_REINDEX_KEY,
-                new RoomMessage(id, "DELETE"));
+            // 注册事务提交后回调
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // 延时第二次缓存删除
+                    rabbitTemplate.convertAndSend(
+                            RabbitMQConfig.ROOM_EXCHANGE,
+                            RabbitMQConfig.CACHE_DELETE_DELAY_KEY,
+                            id);
+                    // 通知 agent-service 重新索引（发布状态变更影响搜索可见性）
+                    rabbitTemplate.convertAndSend(
+                            RabbitMQConfig.ROOM_EXCHANGE,
+                            RabbitMQConfig.ROOM_REINDEX_KEY,
+                            new RoomMessage(id, "UPDATE"));
+                }
+            });
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     @Override
@@ -363,8 +330,139 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         vo.setAvatarUrl(landlord.getAvatarUrl());
         return vo;
     }
+
+    // ==================== 私有辅助方法 ====================
+
+    private RLock acquireLock(Long roomId) {
+        String lockKey = "lock:room:update:" + roomId;
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            if (!lock.tryLock(5, TimeUnit.SECONDS)) {
+                throw new RuntimeException("Failed to acquire lock for room update: " + roomId);
+            }
+            return lock;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while acquiring lock for room update: " + roomId);
+        }
+    }
+
+    private void deleteOldAssociations(Long roomId) {
+        // 删除图片列表
+        LambdaQueryWrapper<GraphInfo> graphQueryWrapper = new LambdaQueryWrapper<>();
+        graphQueryWrapper.eq(GraphInfo::getItemType, ItemType.ROOM);
+        graphQueryWrapper.eq(GraphInfo::getItemId, roomId);
+        graphInfoService.remove(graphQueryWrapper);
+
+        // 删除配套列表
+        LambdaQueryWrapper<RoomFacility> facilityQueryWrapper = new LambdaQueryWrapper<>();
+        facilityQueryWrapper.eq(RoomFacility::getRoomId, roomId);
+        roomFacilityService.remove(facilityQueryWrapper);
+
+        // 删除标签列表
+        LambdaQueryWrapper<RoomLabel> labelQueryWrapper = new LambdaQueryWrapper<>();
+        labelQueryWrapper.eq(RoomLabel::getRoomId, roomId);
+        roomLabelService.remove(labelQueryWrapper);
+
+        // 删除支付方式列表
+        LambdaQueryWrapper<RoomPaymentType> paymentQueryWrapper = new LambdaQueryWrapper<>();
+        paymentQueryWrapper.eq(RoomPaymentType::getRoomId, roomId);
+        roomPaymentTypeService.remove(paymentQueryWrapper);
+
+        // 删除属性值关系列表
+        LambdaQueryWrapper<RoomAttrValue> attrValueQueryWrapper = new LambdaQueryWrapper<>();
+        attrValueQueryWrapper.eq(RoomAttrValue::getRoomId, roomId);
+        roomAttrValueService.remove(attrValueQueryWrapper);
+
+        // 删除可选租期列表
+        LambdaQueryWrapper<RoomLeaseTerm> leaseTermQueryWrapper = new LambdaQueryWrapper<>();
+        leaseTermQueryWrapper.eq(RoomLeaseTerm::getRoomId, roomId);
+        roomLeaseTermService.remove(leaseTermQueryWrapper);
+    }
+
+    private void insertGraphList(RoomSubmitVo roomSubmitVo) {
+        List<GraphVo> graphVoList = roomSubmitVo.getGraphVoList();
+        if (!CollectionUtils.isEmpty(graphVoList)) {
+            ArrayList<GraphInfo> graphInfoList = new ArrayList<>();
+            for (GraphVo graphVo : graphVoList) {
+                GraphInfo graphInfo = new GraphInfo();
+                graphInfo.setItemType(ItemType.ROOM);
+                graphInfo.setItemId(roomSubmitVo.getId());
+                graphInfo.setName(graphVo.getName());
+                graphInfo.setUrl(graphVo.getUrl());
+                graphInfoList.add(graphInfo);
+            }
+            graphInfoService.saveBatch(graphInfoList);
+        }
+    }
+
+    private void insertFacilityList(RoomSubmitVo roomSubmitVo) {
+        List<Long> facilityInfoList = roomSubmitVo.getFacilityInfoIds();
+        if (!CollectionUtils.isEmpty(facilityInfoList)) {
+            ArrayList<RoomFacility> facilityList = new ArrayList<>();
+            for (Long facilityId : facilityInfoList) {
+                RoomFacility roomFacility = new RoomFacility();
+                roomFacility.setFacilityId(facilityId);
+                roomFacility.setRoomId(roomSubmitVo.getId());
+                facilityList.add(roomFacility);
+            }
+            roomFacilityService.saveBatch(facilityList);
+        }
+    }
+
+    private void insertLabelList(RoomSubmitVo roomSubmitVo) {
+        List<Long> labelInfoList = roomSubmitVo.getLabelInfoIds();
+        if (!CollectionUtils.isEmpty(labelInfoList)) {
+            List<RoomLabel> roomLabelList = new ArrayList<>();
+            for (Long labelId : labelInfoList) {
+                RoomLabel roomLabel = new RoomLabel();
+                roomLabel.setRoomId(roomSubmitVo.getId());
+                roomLabel.setLabelId(labelId);
+                roomLabelList.add(roomLabel);
+            }
+            roomLabelService.saveBatch(roomLabelList);
+        }
+    }
+
+    private void insertAttrValueList(RoomSubmitVo roomSubmitVo) {
+        List<Long> attrValueVoList = roomSubmitVo.getAttrValueIds();
+        if (!CollectionUtils.isEmpty(attrValueVoList)) {
+            ArrayList<RoomAttrValue> roomAttrValueList = new ArrayList<>();
+            for (Long attrValueId : attrValueVoList) {
+                RoomAttrValue roomAttrValue = new RoomAttrValue();
+                roomAttrValue.setRoomId(roomSubmitVo.getId());
+                roomAttrValue.setAttrValueId(attrValueId);
+                roomAttrValueList.add(roomAttrValue);
+            }
+            roomAttrValueService.saveBatch(roomAttrValueList);
+        }
+    }
+
+    private void insertPaymentTypeList(RoomSubmitVo roomSubmitVo) {
+        List<Long> paymentTypeList = roomSubmitVo.getPaymentTypeIds();
+        if (!CollectionUtils.isEmpty(paymentTypeList)) {
+            ArrayList<RoomPaymentType> roomPaymentTypeList = new ArrayList<>();
+            for (Long paymentTypeId : paymentTypeList) {
+                RoomPaymentType roomPaymentType = new RoomPaymentType();
+                roomPaymentType.setRoomId(roomSubmitVo.getId());
+                roomPaymentType.setPaymentTypeId(paymentTypeId);
+                roomPaymentTypeList.add(roomPaymentType);
+            }
+            roomPaymentTypeService.saveBatch(roomPaymentTypeList);
+        }
+    }
+
+    private void insertLeaseTermList(RoomSubmitVo roomSubmitVo) {
+        List<Long> leaseTermList = roomSubmitVo.getLeaseTermIds();
+        if (!CollectionUtils.isEmpty(leaseTermList)) {
+            ArrayList<RoomLeaseTerm> roomLeaseTermList = new ArrayList<>();
+            for (Long leaseTermId : leaseTermList) {
+                RoomLeaseTerm roomLeaseTerm = new RoomLeaseTerm();
+                roomLeaseTerm.setRoomId(roomSubmitVo.getId());
+                roomLeaseTerm.setLeaseTermId(leaseTermId);
+                roomLeaseTermList.add(roomLeaseTerm);
+            }
+            roomLeaseTermService.saveBatch(roomLeaseTermList);
+        }
+    }
 }
-
-
-
-

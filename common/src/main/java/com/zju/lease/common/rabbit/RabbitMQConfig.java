@@ -27,6 +27,12 @@ public class RabbitMQConfig {
     public static final String HISTORY_RECORD_QUEUE = "lease.history.record";
     public static final String HISTORY_RECORD_KEY = "history.record";
 
+    // ==================== 房间缓存延迟双删 ====================
+    public static final String CACHE_DELETE_DELAY_QUEUE = "lease.room.cache.delete.delay";
+    public static final String CACHE_DELETE_QUEUE = "lease.room.cache.delete";
+    public static final String CACHE_DELETE_DELAY_KEY = "room.cache.delete.delay";
+    public static final String CACHE_DELETE_KEY = "room.cache.delete";
+
     // ==================== 租约到期通知 ====================
     public static final String LEASE_EXCHANGE = "lease.lease";
     public static final String LEASE_EXPIRED_QUEUE = "lease.lease.expired";
@@ -74,6 +80,20 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(LEASE_EXPIRED_QUEUE).build();
     }
 
+    @Bean
+    public Queue cacheDeleteDelayQueue() {
+        return QueueBuilder.durable(CACHE_DELETE_DELAY_QUEUE)
+                .withArgument("x-dead-letter-exchange", ROOM_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", CACHE_DELETE_KEY)
+                .withArgument("x-message-ttl", 1000)
+                .build();
+    }
+
+    @Bean
+    public Queue cacheDeleteQueue() {
+        return QueueBuilder.durable(CACHE_DELETE_QUEUE).build();
+    }
+
     // ==================== 绑定 ====================
     @Bean
     public Binding roomReindexBinding() {
@@ -93,6 +113,16 @@ public class RabbitMQConfig {
     @Bean
     public Binding leaseExpiredBinding() {
         return BindingBuilder.bind(leaseExpiredQueue()).to(leaseExchange()).with(LEASE_EXPIRED_KEY);
+    }
+
+    @Bean
+    public Binding cacheDeleteDelayBinding() {
+        return BindingBuilder.bind(cacheDeleteDelayQueue()).to(roomExchange()).with(CACHE_DELETE_DELAY_KEY);
+    }
+
+    @Bean
+    public Binding cacheDeleteBinding() {
+        return BindingBuilder.bind(cacheDeleteQueue()).to(roomExchange()).with(CACHE_DELETE_KEY);
     }
 
     // ==================== 消息转换器 ====================
